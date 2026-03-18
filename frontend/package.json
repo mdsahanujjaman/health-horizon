@@ -1,0 +1,27 @@
+{
+    "name": "health-horizon-frontend",
+    "version": "1.0.0",
+    "private": true,
+    "type": "module",
+    "scripts": {
+        "dev": "vite",
+        "build": "vite build",
+        "preview": "vite preview"
+    },
+    "dependencies": {
+        "@stomp/stompjs": "^7.3.0",
+        "axios": "^1.6.8",
+        "lucide-react": "^0.365.0",
+        "react": "^18.2.0",
+        "react-dom": "^18.2.0",
+        "react-router-dom": "^6.22.3",
+        "recharts": "^3.8.0",
+        "sockjs-client": "^1.6.1"
+    },
+    "devDependencies": {
+        "@tailwindcss/vite": "^4.2.1",
+        "@vitejs/plugin-react": "^4.2.1",
+        "tailwindcss": "^4.2.1",
+        "vite": "^5.2.0"
+    }
+}

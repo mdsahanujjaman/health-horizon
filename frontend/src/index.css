@@ -1,0 +1,123 @@
+@import 'tailwindcss';
+
+@theme {
+  --color-primary: #06b6d4;
+  /* Cyan-500 - More vibrant */
+  --color-secondary: #8b5cf6;
+  /* Violet-500 */
+  --color-accent: #f43f5e;
+  /* Rose-500 */
+  --color-success: #10b981;
+  /* Emerald-500 */
+  --color-warning: #f59e0b;
+  /* Amber-500 */
+  --color-info: #3b82f6;
+  /* Blue-500 */
+
+  /* Custom Animations */
+  --animate-float: float 6s ease-in-out infinite;
+  --animate-pulse-slow: pulseSlow 4s ease-in-out infinite;
+  --animate-glow: glow 2s ease-in-out infinite alternate;
+}
+
+/* -------------------------------------------------------------------------- */
+/*                                Modern Reset                                */
+/* -------------------------------------------------------------------------- */
+:root {
+  --font-body: 'Plus Jakarta Sans', 'Outfit', system-ui, sans-serif;
+  --font-heading: 'Outfit', sans-serif;
+
+  --bg-gradient: linear-gradient(135deg, #ecfeff 0%, #eff6ff 100%);
+  --glass-bg: rgba(255, 255, 255, 0.8);
+  --glass-border: rgba(255, 255, 255, 0.6);
+  --shadow-soft: 0 10px 40px -10px rgba(6, 182, 212, 0.05);
+  --shadow-glow: 0 0 20px rgba(6, 182, 212, 0.3);
+}
+
+/* Glassmorphism Card with Glow */
+.glass-card {
+  @apply bg-white/90 backdrop-blur-3xl border border-white/50 shadow-2xl rounded-[2.5rem] relative overflow-hidden;
+  box-shadow:
+    0 10px 30px -10px rgba(6, 182, 212, 0.1),
+    0 4px 12px rgba(0, 0, 0, 0.05);
+  transition: all 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.glass-card:hover {
+  transform: translateY(-6px) scale(1.01);
+  box-shadow:
+    0 25px 50px -12px rgba(6, 182, 212, 0.25),
+    0 0 30px rgba(139, 92, 246, 0.15);
+  /* Violet glow mix */
+}
+
+/* 
+   Thin Gradient Border Utility 
+   Using background-clip for a sharp gradient stroke
+*/
+.gradient-border {
+  position: relative;
+  background:
+    linear-gradient(white, white) padding-box,
+    linear-gradient(135deg, var(--color-primary), var(--color-secondary), var(--color-accent)) border-box;
+  border: 1.5px solid transparent;
+  border-radius: 2.5rem;
+}
+
+.gradient-border-rich {
+  position: relative;
+  background:
+    linear-gradient(white, white) padding-box,
+    linear-gradient(to right, #00c6ff, #0072ff, #8b5cf6, #f43f5e) border-box;
+  border: 2px solid transparent;
+  border-radius: 2.5rem;
+  box-shadow: 0 10px 40px -10px rgba(6, 182, 212, 0.15);
+}
+
+.gradient-border-hover {
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.gradient-border-hover:hover {
+  transform: translateY(-5px);
+  background:
+    linear-gradient(white, white) padding-box,
+    linear-gradient(135deg, var(--color-accent), var(--color-secondary), var(--color-primary)) border-box;
+  box-shadow: 0 20px 50px -15px rgba(6, 182, 212, 0.3);
+}
+
+/* Gradient Text for Headlines */
+.gradient-text {
+  @apply bg-clip-text text-transparent bg-gradient-to-r from-cyan-500 via-violet-500 to-rose-500 font-black tracking-tight;
+}
+
+/* Richer Body Background */
+body {
+  @apply bg-slate-50 text-slate-800 font-sans antialiased;
+  background-image:
+    radial-gradient(at 0% 0%, hsla(186, 100%, 90%, 0.4) 0, transparent 50%),
+    radial-gradient(at 100% 0%, hsla(260, 100%, 92%, 0.4) 0, transparent 50%),
+    radial-gradient(at 100% 100%, hsla(330, 100%, 90%, 0.3) 0, transparent 50%),
+    radial-gradient(at 0% 100%, hsla(180, 100%, 92%, 0.3) 0, transparent 50%);
+  background-attachment: fixed;
+  font-family: var(--font-body);
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(to bottom, #cbd5e1, #94a3b8);
+  border-radius: 9999px;
+  border: 2px solid #f8fafc;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(to bottom, #94a3b8, #64748b);
+}
