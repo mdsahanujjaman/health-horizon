@@ -38,6 +38,7 @@ const Register = () => {
     try {
       const response = await api.post('/auth/register', formData);
       localStorage.setItem('token', response.data.token);
+      localStorage.setItem('userId', response.data.userId);
       localStorage.setItem('fullName', response.data.fullName || formData.fullName);
       localStorage.setItem('role', formData.role);
       localStorage.setItem('verificationStatus', response.data.verificationStatus);
@@ -154,15 +155,16 @@ const Register = () => {
                 </label>
                 <div className="relative group">
                   <User className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 group-focus-within:text-primary transition-colors" />
-                  <input
-                    name="fullName"
-                    type="text"
-                    required
-                    className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-primary/10 focus:border-primary focus-aura outline-none transition-all font-bold text-slate-700"
-                    placeholder="John Doe"
-                    value={formData.fullName}
-                    onChange={handleChange}
-                  />
+                    <input
+                      name="fullName"
+                      type="text"
+                      required
+                      autoComplete="name"
+                      className="input-premium pl-12"
+                      placeholder="John Doe"
+                      value={formData.fullName}
+                      onChange={handleChange}
+                    />
                 </div>
               </div>
 
@@ -176,7 +178,8 @@ const Register = () => {
                     name="email"
                     type="email"
                     required
-                    className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-primary/10 focus:border-primary focus-aura outline-none transition-all font-bold text-slate-700"
+                    autoComplete="email"
+                    className="input-premium pl-12"
                     placeholder="name@example.com"
                     value={formData.email}
                     onChange={handleChange}
@@ -194,7 +197,8 @@ const Register = () => {
                     name="password"
                     type="password"
                     required
-                    className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-primary/10 focus:border-primary focus-aura outline-none transition-all font-bold text-slate-700"
+                    autoComplete="new-password"
+                    className="input-premium pl-12"
                     placeholder="••••••••"
                     value={formData.password}
                     onChange={handleChange}
@@ -209,7 +213,7 @@ const Register = () => {
                 <div className="relative">
                   <select
                     name="role"
-                    className="w-full px-4 py-4 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-primary/10 focus:border-primary outline-none transition-all font-bold text-slate-700 appearance-none cursor-pointer"
+                    className="input-premium appearance-none cursor-pointer"
                     value={formData.role}
                     onChange={handleChange}
                   >
@@ -253,7 +257,7 @@ const Register = () => {
                     <select
                       name="specialization"
                       required
-                      className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-primary/10 focus:border-primary outline-none transition-all font-bold text-slate-700 appearance-none cursor-pointer"
+                      className="input-premium pl-12 appearance-none cursor-pointer"
                       value={formData.specialization}
                       onChange={handleChange}
                     >
@@ -300,7 +304,7 @@ const Register = () => {
                     <input
                       type="text"
                       placeholder="Enter Access Key"
-                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-bold focus:border-primary outline-none transition-all text-center tracking-widest"
+                      className="input-premium text-center tracking-widest py-2 text-xs"
                       onChange={(e) => {
                         const val = e.target.value.trim().toLowerCase();
                         if (val === 'horizon-admin-2026') {
@@ -323,7 +327,7 @@ const Register = () => {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-4 bg-slate-900 text-white rounded-xl font-black text-lg shadow-xl shadow-slate-900/20 hover:shadow-slate-900/30 hover:-translate-y-1 active:translate-y-0 transition-all disabled:opacity-50 flex items-center justify-center gap-2 overflow-hidden relative group"
+                className="btn-premium w-full py-4 text-lg overflow-hidden relative group"
               >
                 <div className="absolute inset-0 bg-gradient-premium opacity-0 group-hover:opacity-100 transition-opacity"></div>
                 <span className="relative z-10 flex items-center gap-2">
@@ -349,7 +353,7 @@ const Register = () => {
                 <button
                   type="button"
                   onClick={handleGoogleRegister}
-                  className="flex items-center justify-center gap-2 py-3 border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors font-bold text-slate-700"
+                  className="btn-outline w-full flex items-center justify-center gap-2"
                 >
                   <svg className="w-5 h-5" viewBox="0 0 24 24">
                     <path
@@ -374,7 +378,7 @@ const Register = () => {
                 <button
                   type="button"
                   onClick={() => setShowPhoneInputModal(true)}
-                  className="flex items-center justify-center gap-2 py-3 border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors font-bold text-slate-700"
+                  className="btn-outline w-full flex items-center justify-center gap-2"
                 >
                   <span className="w-5 h-5 bg-green-500 rounded flex items-center justify-center text-white text-[10px]">
                     📞
@@ -405,14 +409,14 @@ const Register = () => {
             <input
               type="tel"
               placeholder="+91 00000 00000"
-              className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-bold mb-4"
+              className="input-premium mb-4"
               value={phoneNumber}
               onChange={(e) => setPhoneNumber(e.target.value)}
             />
             <div className="flex gap-3">
               <button
                 onClick={() => setShowPhoneInputModal(false)}
-                className="flex-1 py-3 text-slate-500 font-bold"
+                className="btn-outline flex-1"
               >
                 Cancel
               </button>
@@ -421,7 +425,7 @@ const Register = () => {
                   setShowPhoneInputModal(false);
                   setShowOtpModal(true);
                 }}
-                className="flex-1 py-3 bg-slate-900 text-white rounded-xl font-bold"
+                className="btn-premium flex-1"
               >
                 Next
               </button>
@@ -437,14 +441,14 @@ const Register = () => {
             <input
               type="text"
               placeholder="000000"
-              className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-black tracking-widest text-center text-2xl mb-4"
+              className="input-premium text-center tracking-widest text-2xl mb-4 py-4 font-black"
               value={otp}
               onChange={(e) => setOtp(e.target.value)}
             />
             <button
               onClick={verifyOtp}
               disabled={otp.length !== 6 || loading}
-              className="w-full py-3 bg-slate-900 text-white rounded-xl font-bold"
+              className="btn-premium w-full"
             >
               {loading ? <Loader2 className="animate-spin h-5 w-5 mx-auto" /> : 'Verify'}
             </button>

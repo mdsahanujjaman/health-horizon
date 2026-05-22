@@ -1,4 +1,6 @@
 const router = require('express').Router();
+const path = require('path');
+const fs = require('fs');
 const { authenticate, authorize } = require('../middleware/auth');
 const upload = require('../middleware/upload');
 const { MedicalRecord, Patient } = require('../models/index');
@@ -21,6 +23,22 @@ router.get('/my', authenticate, async (req, res, next) => {
 router.get('/patient/:patientId', authenticate, authorize('DOCTOR', 'ADMIN', 'RECORD_HANDLER'), async (req, res, next) => {
     try { res.json(await MedicalRecord.findAll({ where: { patientId: req.params.patientId } })); } catch (err) { next(err); }
 });
+router.get('/download/:id', authenticate, async (req, res, next) => {
+    try {
+        const record = await MedicalRecord.findByPk(req.params.id);
+        if (!record) return res.status(404).json({ message: 'Record not found' });
+        
+        const filename = path.basename(record.storagePath);
+        const filePath = path.join(__dirname, '../../', process.env.UPLOAD_DIR || 'uploads/credentials', filename);
+        
+        if (fs.existsSync(filePath)) {
+            res.download(filePath, record.fileName);
+        } else {
+            res.status(404).json({ message: 'File not found on disk' });
+        }
+    } catch (err) { next(err); }
+});
+
 router.delete('/:id', authenticate, async (req, res, next) => {
     try { await MedicalRecord.destroy({ where: { id: req.params.id } }); res.json({ message: 'Record deleted' }); } catch (err) { next(err); }
 });

@@ -37,6 +37,7 @@ const server = http.createServer(app);
 const io = new Server(server, {
   cors: { origin: '*', methods: ['GET', 'POST'] }
 });
+app.set('io', io);
 
 // Middleware
 app.use(cors());
@@ -79,8 +80,33 @@ initSocket(io);
 // DB sync & start
 const PORT = process.env.PORT || 8080;
 sequelize.sync({ alter: true })
-  .then(() => {
+  .then(async () => {
     console.log('Database synced successfully.');
+    
+    // Seed/Update Governance Admin Account
+    try {
+      const bcrypt = require('bcryptjs');
+      const { User } = require('./src/models/index');
+      const existing = await User.findOne({ where: { email: 'governance@gmail.com' } });
+      const hashed = await bcrypt.hash('12345', 10);
+      
+      if (existing) {
+        await existing.update({ password: hashed, role: 'ADMIN', verificationStatus: 'VERIFIED' });
+        console.log('Governance Admin account successfully verified/updated with password: 12345');
+      } else {
+        await User.create({
+          fullName: 'Governance Admin',
+          email: 'governance@gmail.com',
+          password: hashed,
+          role: 'ADMIN',
+          verificationStatus: 'VERIFIED'
+        });
+        console.log('Governance Admin account successfully created with password: 12345');
+      }
+    } catch (err) {
+      console.error('Failed to seed governance admin:', err);
+    }
+
     server.listen(PORT, () => console.log(`Health Horizon backend running on port ${PORT}`));
   })
   .catch(err => {

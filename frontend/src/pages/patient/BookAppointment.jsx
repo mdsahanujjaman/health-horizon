@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Loader2, CheckCircle, Stethoscope, MapPin, Award, User } from 'lucide-react';
+import { Loader2, CheckCircle, Stethoscope, MapPin, Award, User, Calendar, Clock } from 'lucide-react';
 import api from '../../services/api';
 import PatientSidebar from '../../components/PatientSidebar';
+import { playAppointmentConfirmedSound, playTapSound } from '../../utils/audio';
 
 const BookAppointment = () => {
   const navigate = useNavigate();
@@ -11,6 +12,11 @@ const BookAppointment = () => {
   const [fetchingAllDoctors, setFetchingAllDoctors] = useState(false);
   const [doctorInfo, setDoctorInfo] = useState(null);
   const [allDoctors, setAllDoctors] = useState([]);
+  
+  // Custom split date & time states
+  const [selectedDate, setSelectedDate] = useState('');
+  const [selectedTimeSlot, setSelectedTimeSlot] = useState('');
+
   const [formData, setFormData] = useState({
     doctorId: '',
     appointmentTime: '',
@@ -28,6 +34,29 @@ const BookAppointment = () => {
       fetchDoctorDetails(doctorId);
     }
   }, [doctorId]);
+
+  // Sync date + time slot directly into backend's appointmentTime payload
+  useEffect(() => {
+    if (selectedDate && selectedTimeSlot) {
+      setFormData((prev) => ({
+        ...prev,
+        appointmentTime: `${selectedDate}T${selectedTimeSlot}:00`,
+      }));
+    } else {
+      setFormData((prev) => ({
+        ...prev,
+        appointmentTime: '',
+      }));
+    }
+  }, [selectedDate, selectedTimeSlot]);
+
+  const getTodayDateString = () => {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
 
   const fetchAllDoctors = async () => {
     setFetchingAllDoctors(true);
@@ -76,6 +105,19 @@ const BookAppointment = () => {
     setLoading(true);
     setMessage('');
 
+    if (!formData.appointmentTime) {
+      setMessage('⚠️ Please select a date and a time slot.');
+      setLoading(false);
+      return;
+    }
+
+    const selectedTime = new Date(formData.appointmentTime);
+    if (selectedTime < new Date()) {
+      setMessage('⚠️ Cannot select a past date or time for the appointment.');
+      setLoading(false);
+      return;
+    }
+
     try {
       const res = await api.post('/appointments', {
         doctorId: formData.doctorId,
@@ -87,6 +129,7 @@ const BookAppointment = () => {
       const consultationFee = doctorInfo?.consultationFee || '$50.00';
 
       setMessage('Appointment booked! Redirecting to payment...');
+      playAppointmentConfirmedSound();
       setTimeout(() => {
         navigate('/patient/payment', {
           state: {
@@ -126,7 +169,7 @@ const BookAppointment = () => {
                       <Loader2 className="w-8 h-8 animate-spin text-primary" />
                     ) : doctorInfo?.profilePictureUrl ? (
                       <img
-                        src={`http://localhost:8080${doctorInfo.profilePictureUrl}`}
+                        src={`http://localhost:8081${doctorInfo.profilePictureUrl}`}
                         alt={doctorInfo.fullName}
                         className="w-full h-full object-cover"
                         onError={(e) => {
@@ -225,19 +268,84 @@ const BookAppointment = () => {
                     </div>
 
                     <div className="space-y-2">
-                      <label className="text-sm font-black text-slate-900 uppercase tracking-widest">
-                        Date & Time
+                      <label className="text-sm font-black text-slate-900 uppercase tracking-widest flex items-center gap-2">
+                        <Calendar className="w-5 h-5 text-primary" />
+                        Select Date
                       </label>
                       <input
-                        type="datetime-local"
-                        name="appointmentTime"
-                        value={formData.appointmentTime}
-                        onChange={handleChange}
+                        type="date"
+                        min={getTodayDateString()}
+                        value={selectedDate}
+                        onChange={(e) => {
+                          setSelectedDate(e.target.value);
+                          setSelectedTimeSlot(''); // reset slot when date changes
+                        }}
                         required
-                        className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 focus:ring-8 focus:ring-primary/5 focus:border-primary outline-none transition-all font-bold text-slate-700"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 focus:ring-8 focus:ring-primary/5 focus:border-primary outline-none transition-all font-bold text-slate-700 cursor-pointer"
                       />
                     </div>
                   </div>
+
+                  {/* Interactive Time Slots Grid */}
+                  {selectedDate && (
+                    <div className="space-y-3 animate-fade-in">
+                      <label className="text-sm font-black text-slate-900 uppercase tracking-widest flex items-center gap-2">
+                        <Clock className="w-5 h-5 text-primary" />
+                        Select Time Slot
+                      </label>
+                      
+                      <div className="space-y-4">
+                        {/* Morning Slots */}
+                        <div>
+                          <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Morning Sessions</p>
+                          <div className="grid grid-cols-3 gap-3">
+                            {[
+                              { label: '09:00 AM', value: '09:00' },
+                              { label: '10:00 AM', value: '10:00' },
+                              { label: '11:00 AM', value: '11:00' }
+                            ].map((slot) => {
+                              const active = selectedTimeSlot === slot.value;
+                              return (
+                                <button
+                                  key={slot.value}
+                                  type="button"
+                                  onClick={() => setSelectedTimeSlot(slot.value)}
+                                  className={`py-3.5 px-4 rounded-2xl font-bold text-xs transition-all duration-300 hover-lift ${active ? 'bg-primary text-white shadow-lg shadow-primary/25' : 'bg-slate-50 border border-slate-200 text-slate-700 hover:border-slate-350 hover:bg-slate-100/50'}`}
+                                >
+                                  {slot.label}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        {/* Afternoon Slots */}
+                        <div>
+                          <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Afternoon Sessions</p>
+                          <div className="grid grid-cols-4 gap-3">
+                            {[
+                              { label: '02:00 PM', value: '14:00' },
+                              { label: '03:00 PM', value: '15:00' },
+                              { label: '04:00 PM', value: '16:00' },
+                              { label: '05:00 PM', value: '17:00' }
+                            ].map((slot) => {
+                              const active = selectedTimeSlot === slot.value;
+                              return (
+                                <button
+                                  key={slot.value}
+                                  type="button"
+                                  onClick={() => setSelectedTimeSlot(slot.value)}
+                                  className={`py-3.5 px-3 rounded-2xl font-bold text-[11px] transition-all duration-300 hover-lift ${active ? 'bg-primary text-white shadow-lg shadow-primary/25' : 'bg-slate-50 border border-slate-200 text-slate-700 hover:border-slate-350 hover:bg-slate-100/50'}`}
+                                >
+                                  {slot.label}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
                   <div className="space-y-2">
                     <label className="text-sm font-black text-slate-900 uppercase tracking-widest">

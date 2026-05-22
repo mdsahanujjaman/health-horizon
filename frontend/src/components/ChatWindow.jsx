@@ -1,21 +1,17 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import SockJS from 'sockjs-client';
-import { Stomp } from '@stomp/stompjs';
+import { io } from 'socket.io-client';
 import { Send, MessageCircle, X, Loader2 } from 'lucide-react';
-import api from '../services/api';
+import api, { BASE_URL } from '../services/api';
 
 const ChatWindow = ({ currentUser, recipientId, recipientName, onClose }) => {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
-  const [stompClient, setStompClient] = useState(null);
+  const [socket, setSocket] = useState(null);
   const messagesEndRef = useRef(null);
 
   const fetchHistory = useCallback(async () => {
     try {
-      // Need an endpoint to get user ID or email.
-      // Assuming currentUser has the ID.
       if (!currentUser?.id || !recipientId) return;
-
       const response = await api.get(`/messages/${currentUser.id}/${recipientId}`);
       setMessages(response.data);
     } catch (err) {
@@ -23,69 +19,44 @@ const ChatWindow = ({ currentUser, recipientId, recipientName, onClose }) => {
     }
   }, [currentUser, recipientId]);
 
-  // Connect to WebSocket
   useEffect(() => {
-    const socket = new SockJS('http://localhost:8080/ws');
-    const client = Stomp.over(socket);
+    if (!currentUser?.id) return;
 
-    // Disable debug logs
-    client.debug = () => { };
+    const newSocket = io(BASE_URL, {
+      query: { userId: currentUser.id }
+    });
 
-    client.connect(
-      {},
-      () => {
-        // Subscribe to my specific queue
-        // In config: config.setUserDestinationPrefix("/user");
-        // So backend sends to /user/{userId}/queue/messages
-        // Client subscribes to /user/queue/messages (Spring handles the mapping to session)
-
-        client.subscribe('/user/queue/messages', (payload) => {
-          const newMessage = JSON.parse(payload.body);
-          // Only add if it belongs to this conversation
-          // (In a real app, global store handles this, but here we filter)
-          if (newMessage.senderId === recipientId || newMessage.senderId === currentUser.id) {
-            setMessages((prev) => [...prev, newMessage]);
-          }
-        });
-
-        setStompClient(client);
-      },
-      (err) => {
-        console.error('Connection error: ', err);
+    newSocket.on('message', (newMessage) => {
+      if (newMessage.senderId.toString() === recipientId.toString() || newMessage.senderId.toString() === currentUser.id.toString()) {
+        setMessages((prev) => [...prev, newMessage]);
       }
-    );
-    const init = async () => {
-      // Load history
-      await fetchHistory();
-    };
-    init();
+    });
+
+    setSocket(newSocket);
+    fetchHistory();
 
     return () => {
-      if (client) client.disconnect();
+      newSocket.disconnect();
     };
   }, [currentUser.id, fetchHistory, recipientId]);
 
   const sendMessage = () => {
-    if (!input.trim() || !stompClient) return;
+    if (!input.trim() || !socket) return;
 
     const chatMessage = {
       senderId: currentUser.id,
       recipientId: recipientId,
       content: input,
-      status: 'SENT',
     };
 
-    stompClient.send('/app/chat', {}, JSON.stringify(chatMessage));
-
-    // Optimistic update
-    setMessages((prev) => [...prev, { ...chatMessage, timestamp: new Date().toISOString() }]);
+    socket.emit('chat', chatMessage);
     setInput('');
   };
 
   return (
-    <div className="fixed bottom-4 right-4 w-80 md:w-96 bg-white rounded-2xl shadow-2xl border border-gray-200 flex flex-col overflow-hidden z-50 h-[500px]">
+    <div className="fixed bottom-4 right-4 w-80 md:w-96 card-modern z-50 h-[500px] flex flex-col shadow-2xl animate-fade-in-up">
       {/* Header */}
-      <div className="bg-primary p-4 flex justify-between items-center text-white">
+      <div className="bg-slate-900 p-5 flex justify-between items-center text-white">
         <div className="flex items-center gap-2">
           <MessageCircle className="w-5 h-5" />
           <span className="font-bold">{recipientName}</span>
@@ -103,8 +74,8 @@ const ChatWindow = ({ currentUser, recipientId, recipientName, onClose }) => {
             <div key={idx} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
               <div
                 className={`max-w-[75%] p-3 rounded-2xl text-sm ${isMe
-                  ? 'bg-primary text-white rounded-br-none'
-                  : 'bg-white text-gray-800 border border-gray-100 rounded-bl-none shadow-sm'
+                  ? 'bg-slate-900 text-white rounded-br-none'
+                  : 'bg-white text-slate-800 border border-slate-200 rounded-bl-none shadow-sm'
                   }`}
               >
                 <p>{msg.content}</p>
@@ -133,11 +104,11 @@ const ChatWindow = ({ currentUser, recipientId, recipientName, onClose }) => {
           onChange={(e) => setInput(e.target.value)}
           onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
           placeholder="Type a message..."
-          className="flex-1 border border-gray-200 rounded-full px-4 py-2 text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+          className="input-premium flex-1"
         />
         <button
           onClick={sendMessage}
-          className="bg-primary text-white p-2 rounded-full hover:bg-sky-600 transition-colors shadow-lg shadow-primary/25"
+          className="btn-premium px-4"
         >
           <Send className="w-4 h-4" />
         </button>

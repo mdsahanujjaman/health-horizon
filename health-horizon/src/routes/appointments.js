@@ -13,11 +13,18 @@ const mapA = (a) => ({
     doctorSpecialization: a.doctor?.specialization, appointmentTime: a.appointmentTime, status: a.status,
     reason: a.reason, doctorProfilePictureUrl: a.doctor?.user?.profilePictureUrl,
     isPaid: a.payment?.status === 'COMPLETED',
+    createdAt: a.createdAt,
 });
 
 router.post('/', authenticate, async (req, res, next) => {
     try {
-        const a = await Appointment.create({ ...req.body, status: 'PENDING' });
+        let patientId = req.body.patientId;
+        if (!patientId && req.user.role === 'PATIENT') {
+            const p = await Patient.findOne({ where: { userId: req.user.id } });
+            if (!p) return res.status(404).json({ message: 'Patient profile not found' });
+            patientId = p.id;
+        }
+        const a = await Appointment.create({ ...req.body, patientId, status: 'PENDING' });
         res.json(mapA(await Appointment.findByPk(a.id, { include: includeAll })));
     } catch (err) { next(err); }
 });

@@ -77,14 +77,14 @@ const LandingPage = () => {
         <div className="flex flex-col md:flex-row gap-6 justify-center max-w-lg mx-auto">
           <a
             href="/login"
-            className="group relative flex-1 bg-slate-900 text-white py-6 px-10 rounded-[2rem] font-black text-xs uppercase tracking-[0.3em] overflow-hidden transition-all hover:shadow-[0_40px_80px_-20px_rgba(15,23,42,0.4)] hover:-translate-y-2 active:translate-y-0"
+            className="btn-premium flex-1 py-6 px-10 rounded-[2rem] text-xs uppercase tracking-[0.3em] group relative overflow-hidden"
           >
             <div className="absolute inset-0 bg-gradient-premium opacity-0 group-hover:opacity-100 transition-opacity"></div>
             <span className="relative z-10">Access Portal</span>
           </a>
           <a
             href="/register"
-            className="flex-1 bg-white border-2 border-slate-100 text-slate-900 py-6 px-10 rounded-[2rem] font-black text-xs uppercase tracking-[0.3em] hover:bg-slate-50 hover:border-primary/30 transition-all hover:shadow-2xl hover:-translate-y-2 active:translate-y-0 shadow-xl shadow-slate-900/5"
+            className="btn-outline flex-1 py-6 px-10 rounded-[2rem] text-xs uppercase tracking-[0.3em]"
           >
             Join Registry
           </a>

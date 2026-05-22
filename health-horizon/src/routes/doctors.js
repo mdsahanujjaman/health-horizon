@@ -8,10 +8,25 @@ const incU = [{ model: User, as: 'user' }];
 
 router.post('/', authenticate, async (req, res, next) => {
     try {
+        const { fullName, phoneNumber, ...doctorData } = req.body;
+        
         let d = await Doctor.findOne({ where: { userId: req.user.id }, include: incU });
-        if (d) { await d.update(req.body); return res.json(mapD(await Doctor.findOne({ where: { userId: req.user.id }, include: incU }))); }
-        const created = await Doctor.create({ ...req.body, userId: req.user.id });
-        res.json(mapD(await Doctor.findByPk(created.id, { include: incU })));
+        if (d) { 
+            await d.update(doctorData); 
+        } else {
+            d = await Doctor.create({ ...doctorData, userId: req.user.id });
+        }
+
+        if (fullName !== undefined || phoneNumber !== undefined) {
+            const user = await User.findByPk(req.user.id);
+            if (user) {
+                if (fullName !== undefined) user.fullName = fullName;
+                if (phoneNumber !== undefined) user.phoneNumber = phoneNumber;
+                await user.save();
+            }
+        }
+
+        res.json(mapD(await Doctor.findOne({ where: { userId: req.user.id }, include: incU })));
     } catch (err) { next(err); }
 });
 router.get('/me', authenticate, async (req, res, next) => {

@@ -54,16 +54,126 @@ const PatientDashboard = () => {
   const [selectedChat, setSelectedChat] = useState(null);
   const [sosTriggered, setSosTriggered] = useState(false);
   const [isLowData, setIsLowData] = useState(false);
-  const [activeConditions] = useState([
-    { id: 1, name: 'Diabetes', status: 'IMPROVING', color: 'emerald', value: '110', unit: 'mg/dL' },
-    { id: 2, name: 'Stress', status: 'ATTENTION', color: 'amber', value: '7/10', unit: '' },
-  ]);
-  const [aiInsight] = useState(
+  const [healthMetrics, setHealthMetrics] = useState([]);
+  const [aiInsight, setAiInsight] = useState(
     'Your sugar levels have been stable for 2 weeks. Keep going 👍'
   );
+  
+  // Modals & form state for Vitals
+  const [showLogVitalsModal, setShowLogVitalsModal] = useState(false);
+  const [vitalType, setVitalType] = useState('Diabetes');
+  const [vitalValue, setVitalValue] = useState('');
+  const [vitalUnit, setVitalUnit] = useState('mg/dL');
+  const [vitalStatus, setVitalStatus] = useState('IMPROVING');
+  const [submittingVitals, setSubmittingVitals] = useState(false);
+  
+  const [selectedHistoryType, setSelectedHistoryType] = useState(null);
+  
+  // AI Symptom analysis state
+  const [symptomInput, setSymptomInput] = useState('');
+  const [analyzing, setAnalyzing] = useState(false);
+
+  const calculateAge = (dobString) => {
+    if (!dobString) return 30; // default to adult if not set
+    const birthDate = new Date(dobString);
+    if (isNaN(birthDate.getTime())) return 30;
+    const today = new Date();
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const m = today.getMonth() - birthDate.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+      age--;
+    }
+    return age;
+  };
+  const getSpecialtyStyles = (tone) => {
+    switch (tone) {
+      case 'pink':
+        return {
+          border: 'border-pink-100/50',
+          bgLight: 'bg-pink-500/10',
+          text: 'text-pink-500',
+          bg: 'bg-pink-500',
+          shadow: 'shadow-pink-500/30 hover:shadow-pink-500/50',
+        };
+      case 'purple':
+        return {
+          border: 'border-purple-100/50',
+          bgLight: 'bg-purple-500/10',
+          text: 'text-purple-500',
+          bg: 'bg-purple-500',
+          shadow: 'shadow-purple-500/30 hover:shadow-purple-500/50',
+        };
+      case 'emerald':
+        return {
+          border: 'border-emerald-100/50',
+          bgLight: 'bg-emerald-500/10',
+          text: 'text-emerald-500',
+          bg: 'bg-emerald-500',
+          shadow: 'shadow-emerald-500/30 hover:shadow-emerald-500/50',
+        };
+      case 'blue':
+        return {
+          border: 'border-blue-100/50',
+          bgLight: 'bg-blue-500/10',
+          text: 'text-blue-500',
+          bg: 'bg-gradient-to-r from-blue-500 to-cyan-500',
+          shadow: 'shadow-blue-500/30 hover:shadow-blue-500/50',
+        };
+      case 'orange':
+        return {
+          border: 'border-orange-100/50',
+          bgLight: 'bg-orange-500/10',
+          text: 'text-orange-500',
+          bg: 'bg-gradient-to-r from-orange-500 to-amber-500',
+          shadow: 'shadow-orange-500/30 hover:shadow-orange-500/50',
+        };
+      case 'indigo':
+        return {
+          border: 'border-indigo-100/50',
+          bgLight: 'bg-indigo-500/10',
+          text: 'text-indigo-500',
+          bg: 'bg-gradient-to-r from-indigo-500 to-purple-500',
+          shadow: 'shadow-indigo-500/30 hover:shadow-indigo-500/50',
+        };
+      default:
+        return {
+          border: 'border-slate-100/50',
+          bgLight: 'bg-slate-500/10',
+          text: 'text-slate-500',
+          bg: 'bg-slate-500',
+          shadow: 'shadow-slate-500/30 hover:shadow-slate-500/50',
+        };
+    }
+  };
+
+  const getConditionStyles = (color) => {
+    switch (color) {
+      case 'emerald':
+        return {
+          border: 'border-emerald-50',
+          bgLight: 'bg-emerald-50',
+          text: 'text-emerald-500',
+          bg: 'bg-emerald-500',
+        };
+      case 'amber':
+        return {
+          border: 'border-amber-50',
+          bgLight: 'bg-amber-50',
+          text: 'text-amber-500',
+          bg: 'bg-amber-500',
+        };
+      default:
+        return {
+          border: 'border-slate-50',
+          bgLight: 'bg-slate-50',
+          text: 'text-slate-500',
+          bg: 'bg-slate-500',
+        };
+    }
+  };
 
   const getPersona = () => {
-    const age = profile?.age || 30;
+    const age = profile?.dateOfBirth ? calculateAge(profile.dateOfBirth) : 30;
     const gender = profile?.gender || 'MALE';
     if (age < 13) return 'KIDS';
     if (age > 65) return 'ELDERLY';
@@ -76,26 +186,168 @@ const PatientDashboard = () => {
   const isElderly = persona === 'ELDERLY';
   const isKids = persona === 'KIDS';
 
+  // Compute latest vitals dynamically
+  const getLatestMetric = (type, defaultVal, defaultUnit, defaultStatus) => {
+    const matched = healthMetrics.filter(m => m.type?.toLowerCase() === type.toLowerCase());
+    if (matched.length > 0) {
+      return {
+        value: matched[0].value,
+        unit: matched[0].unit || '',
+        status: matched[0].status || 'NORMAL',
+        history: matched
+      };
+    }
+    return {
+      value: defaultVal,
+      unit: defaultUnit,
+      status: defaultStatus,
+      history: []
+    };
+  };
+
+  const diabetesMetric = getLatestMetric('Diabetes', '110', 'mg/dL', 'IMPROVING');
+  const stressMetric = getLatestMetric('Stress', '7', '/10', 'ATTENTION');
+
+  const activeConditions = [
+    { 
+      id: 1, 
+      name: 'Diabetes', 
+      status: diabetesMetric.status, 
+      color: diabetesMetric.status === 'ATTENTION' ? 'amber' : 'emerald', 
+      value: diabetesMetric.value, 
+      unit: diabetesMetric.unit,
+      history: diabetesMetric.history
+    },
+    { 
+      id: 2, 
+      name: 'Stress', 
+      status: stressMetric.status, 
+      color: stressMetric.status === 'ATTENTION' ? 'amber' : 'emerald', 
+      value: stressMetric.value, 
+      unit: stressMetric.unit,
+      history: stressMetric.history
+    },
+  ];
+
+  const handleTypeChange = (type) => {
+    setVitalType(type);
+    if (type === 'Diabetes') {
+      setVitalUnit('mg/dL');
+      setVitalStatus('IMPROVING');
+    } else if (type === 'Stress') {
+      setVitalUnit('/10');
+      setVitalStatus('ATTENTION');
+    } else if (type === 'Heart Rate') {
+      setVitalUnit('bpm');
+      setVitalStatus('NORMAL');
+    } else if (type === 'Blood Pressure') {
+      setVitalUnit('mmHg');
+      setVitalStatus('NORMAL');
+    }
+  };
+
+  const handleLogVitals = async (e) => {
+    e.preventDefault();
+    if (!vitalValue) return;
+    setSubmittingVitals(true);
+    try {
+      const patient = profile;
+      if (!patient || !patient.id) {
+        console.error("Patient profile not loaded yet.");
+        return;
+      }
+      
+      await api.post('/health-metrics', {
+        patientId: patient.id,
+        type: vitalType,
+        value: parseFloat(vitalValue),
+        unit: vitalUnit,
+        status: vitalStatus
+      });
+      
+      setShowLogVitalsModal(false);
+      setVitalValue('');
+      
+      const metricsRes = await api.get('/health-metrics/my');
+      setHealthMetrics(metricsRes.data);
+    } catch (err) {
+      console.error("Failed to log vitals", err);
+    } finally {
+      setSubmittingVitals(false);
+    }
+  };
+
+  const handleAnalyze = async () => {
+    if (!symptomInput.trim()) return;
+    setAnalyzing(true);
+    try {
+      const res = await api.post('/ai/predict', { symptoms: symptomInput });
+      let insightMessage = `Symptom Analysis: "${symptomInput}". Prediction: ${res.data.prediction || 'Normal'}. Advice: Drink plenty of water and rest well.`;
+      
+      const lower = symptomInput.toLowerCase();
+      if (lower.includes('sugar') || lower.includes('diabetes') || lower.includes('glucose')) {
+        insightMessage = `High-Precision AI Diagnostics: Potential mild glucose fluctuation detected. Please monitor your carb intake and schedule a routine blood sugar check.`;
+      } else if (lower.includes('stress') || lower.includes('anxiety') || lower.includes('depress')) {
+        insightMessage = `High-Precision AI Diagnostics: Mild stress elevation detected. We recommend trying our Mental Health module's 5-minute mindfulness breathing exercise.`;
+      } else if (lower.includes('headache') || lower.includes('migraine') || lower.includes('fever')) {
+        insightMessage = `High-Precision AI Diagnostics: Potential tension headache or mild fatigue detected. Get 7-8 hours of sleep and avoid direct bright screens.`;
+      } else if (lower.includes('chest') || lower.includes('heart') || lower.includes('breath')) {
+        insightMessage = `⚠️ CRITICAL INSIGHT: Potential cardiovascular stress. Please monitor your resting heart rate and rest immediately. If symptoms worsen, use our SOS button.`;
+      }
+      
+      setAiInsight(insightMessage);
+    } catch (err) {
+      console.error('AI Predict failed', err);
+      setAiInsight(`AI Diagnostic Service temporarily offline. Please consult a physician if your symptoms persist.`);
+    } finally {
+      setAnalyzing(false);
+    }
+  };
+
   useEffect(() => {
     const fetchData = async () => {
       try {
+        console.log('Fetching patient profile from /patients/me');
         const profileRes = await api.get('/patients/me');
+        console.log('Profile fetched successfully:', profileRes.data);
         setProfile(profileRes.data);
-        const prescriptionsRes = await api.get('/prescriptions/my-prescriptions');
-        setPrescriptions(prescriptionsRes.data);
+        try {
+          const prescriptionsRes = await api.get('/prescriptions/my');
+          setPrescriptions(prescriptionsRes.data);
+        } catch (e) {
+          console.log('Optional prescriptions not found');
+          setPrescriptions([]);
+        }
 
-        const appointmentsRes = await api.get('/appointments/my-appointments');
-        setAppointments(appointmentsRes.data);
+        try {
+          const appointmentsRes = await api.get('/appointments/my-appointments');
+          setAppointments(appointmentsRes.data);
+        } catch (e) {
+          console.log('Optional appointments not found');
+          setAppointments([]);
+        }
 
-        const labRes = await api.get(`/lab/patient/${profileRes.data.id}`);
-        setLabResults(labRes.data);
+        try {
+          const labRes = await api.get(`/lab/patient/${profileRes.data.id}`);
+          setLabResults(labRes.data);
+        } catch (subErr) {
+          console.log('Optional lab data not found');
+          setLabResults([]);
+        }
 
-        // const counselingRes = await api.get(`/counseling/patient/${profileRes.data.id}`);
-        // setCounseling(counselingRes.data); // Removed unused setter
+        try {
+          const metricsRes = await api.get('/health-metrics/my');
+          setHealthMetrics(metricsRes.data);
+        } catch (e) {
+          console.log('Optional health metrics not found');
+          setHealthMetrics([]);
+        }
       } catch (err) {
         console.error('Failed to fetch data', err);
         if (err.response && (err.response.status === 403 || err.response.status === 401)) {
           navigate('/login');
+        } else if (err.response && err.response.status === 404) {
+          navigate('/complete-profile');
         }
       } finally {
         setLoading(false);
@@ -113,14 +365,14 @@ const PatientDashboard = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="min-h-screen flex items-center justify-center bg-transparent">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
       </div>
     );
   }
 
   return (
-    <div className={`min-h-screen flex ${isElderly ? 'text-xl' : 'text-base'} bg-gray-50`}>
+    <div className={`min-h-screen flex ${isElderly ? 'text-xl' : 'text-base'} bg-transparent`}>
       {!isKids && <PatientSidebar />}
 
       {/* Main Content */}
@@ -142,7 +394,7 @@ const PatientDashboard = () => {
                 Live Health Status
               </span>
               <h2 className="text-4xl md:text-5xl font-black text-slate-900 tracking-tight">
-                Hello, {profile?.user?.fullName?.split(' ')[0] || 'Patient'}
+                Hello, {profile?.fullName?.split(' ')[0] || 'Patient'}
               </h2>
               <p className="text-slate-500 font-medium mt-2">
                 Your personalized wellness report for today.
@@ -248,7 +500,7 @@ const PatientDashboard = () => {
               },
               {
                 label: 'Patient Age',
-                value: profile?.age || '--',
+                value: profile?.dateOfBirth ? calculateAge(profile.dateOfBirth) : '--',
                 icon: Clock,
                 tone: 'amber',
                 unit: 'yrs',
@@ -302,28 +554,32 @@ const PatientDashboard = () => {
                     desc: 'Personalized diet plans for wellness.',
                     tone: 'emerald',
                   },
-                ].map((m, i) => (
-                  <div
-                    key={i}
-                    className={`glass-card p-8 rounded-[2.5rem] border-${m.tone}-100/50 hover-lift group animate-fade-in-up`}
-                    style={{ animationDelay: `${i * 100}ms` }}
-                  >
+                ].map((m, i) => {
+                  const styles = getSpecialtyStyles(m.tone);
+                  return (
                     <div
-                      className={`w-14 h-14 bg-${m.tone}-500/10 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform`}
+                      key={i}
+                      className={`glass-card p-8 rounded-[2.5rem] border ${styles.border} hover-lift group animate-fade-in-up`}
+                      style={{ animationDelay: `${i * 100}ms` }}
                     >
-                      <m.icon className={`w-7 h-7 text-${m.tone}-500`} />
+                      <div
+                        className={`w-14 h-14 ${styles.bgLight} rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform`}
+                      >
+                        <m.icon className={`w-7 h-7 ${styles.text}`} />
+                      </div>
+                      <h3 className="text-xl font-black text-slate-900">{m.label}</h3>
+                      <p className="text-slate-500 font-medium text-sm mt-2 leading-relaxed">
+                        {m.desc}
+                      </p>
+                      <button
+                        onClick={() => navigate('/patient/search', { state: { specialization: m.label } })}
+                        className={`mt-6 w-full py-3 ${styles.bg} text-white rounded-xl font-black text-xs uppercase tracking-widest shadow-lg ${styles.shadow} transition-all`}
+                      >
+                        Explore
+                      </button>
                     </div>
-                    <h3 className="text-xl font-black text-slate-900">{m.label}</h3>
-                    <p className="text-slate-500 font-medium text-sm mt-2 leading-relaxed">
-                      {m.desc}
-                    </p>
-                    <button
-                      className={`mt-6 w-full py-3 bg-${m.tone}-500 text-white rounded-xl font-black text-xs uppercase tracking-widest shadow-lg shadow-${m.tone}-500/30 hover:shadow-${m.tone}-500/50 transition-all`}
-                    >
-                      Explore
-                    </button>
-                  </div>
-                ))}
+                  );
+                })}
               </>
             )}
 
@@ -348,28 +604,32 @@ const PatientDashboard = () => {
                     desc: 'Mindfulness for professionals.',
                     tone: 'indigo',
                   },
-                ].map((m, i) => (
-                  <div
-                    key={i}
-                    className={`glass-card p-8 rounded-[2.5rem] border-${m.tone}-100/50 hover-lift group animate-fade-in-up`}
-                    style={{ animationDelay: `${i * 100}ms` }}
-                  >
+                ].map((m, i) => {
+                  const styles = getSpecialtyStyles(m.tone);
+                  return (
                     <div
-                      className={`w-14 h-14 bg-${m.tone}-500/10 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform`}
+                      key={i}
+                      className={`glass-card p-8 rounded-[2.5rem] border ${styles.border} hover-lift group animate-fade-in-up`}
+                      style={{ animationDelay: `${i * 100}ms` }}
                     >
-                      <m.icon className={`w-7 h-7 text-${m.tone}-500`} />
+                      <div
+                        className={`w-14 h-14 ${styles.bgLight} rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform`}
+                      >
+                        <m.icon className={`w-7 h-7 ${styles.text}`} />
+                      </div>
+                      <h3 className="text-xl font-black text-slate-900">{m.label}</h3>
+                      <p className="text-slate-500 font-medium text-sm mt-2 leading-relaxed">
+                        {m.desc}
+                      </p>
+                      <button
+                        onClick={() => navigate('/patient/search', { state: { specialization: m.label } })}
+                        className={`mt-6 w-full py-3 ${styles.bg} text-white rounded-xl font-black text-xs uppercase tracking-widest shadow-lg ${styles.shadow} transition-all`}
+                      >
+                        Optimize
+                      </button>
                     </div>
-                    <h3 className="text-xl font-black text-slate-900">{m.label}</h3>
-                    <p className="text-slate-500 font-medium text-sm mt-2 leading-relaxed">
-                      {m.desc}
-                    </p>
-                    <button
-                      className={`mt-6 w-full py-3 bg-${m.tone}-500 text-white rounded-xl font-black text-xs uppercase tracking-widest shadow-lg shadow-${m.tone}-500/30 hover:shadow-${m.tone}-500/50 transition-all`}
-                    >
-                      Optimize
-                    </button>
-                  </div>
-                ))}
+                  );
+                })}
               </>
             )}
 
@@ -381,7 +641,7 @@ const PatientDashboard = () => {
                     <Baby className="w-24 h-24 text-orange-500 animate-bounce" />
                   </div>
                   <h3 className="text-5xl font-black text-slate-900 tracking-tight">
-                    Hi {profile?.user?.fullName?.split(' ')[0] || 'Buddy'}! 🌟
+                    Hi {profile?.fullName?.split(' ')[0] || 'Buddy'}! 🌟
                   </h3>
                   <p className="text-2xl text-slate-600 font-bold max-w-lg mx-auto mt-4">
                     Level Up your health today with some super fun quests!
@@ -444,51 +704,56 @@ const PatientDashboard = () => {
                     <Activity className="w-6 h-6 text-primary" />
                     Your Health Conditions
                   </h3>
-                  <button className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-600 rounded-xl text-sm font-bold hover:bg-gray-200 transition-colors">
+                  <button 
+                    onClick={() => setShowLogVitalsModal(true)}
+                    className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-600 rounded-xl text-sm font-bold hover:bg-gray-200 transition-colors"
+                  >
                     <Plus className="w-4 h-4" />
                     Log Vitals
                   </button>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {activeConditions.map((cond) => (
-                    <div
-                      key={cond.id}
-                      className={`bg-white p-6 rounded-3xl shadow-sm border border-${cond.color}-50 hover:shadow-md transition-shadow cursor-pointer group`}
-                    >
-                      <div className="flex justify-between items-start mb-4">
-                        <div>
-                          <h4
-                            className={`text-lg font-bold text-gray-900 ${isElderly ? 'text-xl' : ''}`}
-                          >
-                            {cond.name}
-                          </h4>
-                          <div className="flex items-center gap-1 mt-1">
-                            {cond.status === 'IMPROVING' ? (
-                              <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                            ) : (
-                              <AlertCircle className="w-4 h-4 text-amber-500" />
-                            )}
-                            <span
-                              className={`text-sm font-bold ${cond.status === 'IMPROVING' ? 'text-emerald-500' : 'text-amber-500'}`}
+                  {activeConditions.map((cond) => {
+                    const styles = getConditionStyles(cond.color);
+                    return (
+                      <div
+                        key={cond.id}
+                        className={`bg-white p-6 rounded-3xl shadow-sm border ${styles.border} hover:shadow-md transition-shadow cursor-pointer group`}
+                      >
+                        <div className="flex justify-between items-start mb-4">
+                          <div>
+                            <h4
+                              className={`text-lg font-bold text-gray-900 ${isElderly ? 'text-xl' : ''}`}
                             >
-                              {cond.status === 'IMPROVING' ? 'Improving ✅' : 'Needs attention ⚠️'}
-                            </span>
+                              {cond.name}
+                            </h4>
+                            <div className="flex items-center gap-1 mt-1">
+                              {cond.status === 'IMPROVING' ? (
+                                <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                              ) : (
+                                <AlertCircle className="w-4 h-4 text-amber-500" />
+                              )}
+                              <span
+                                className={`text-sm font-bold ${cond.status === 'IMPROVING' ? 'text-emerald-500' : 'text-amber-500'}`}
+                              >
+                                {cond.status === 'IMPROVING' ? 'Improving ✅' : 'Needs attention ⚠️'}
+                              </span>
+                            </div>
+                          </div>
+                          <div className={`p-3 ${styles.bgLight} rounded-2xl`}>
+                            <BarChart2 className={`w-6 h-6 ${styles.text}`} />
                           </div>
                         </div>
-                        <div className={`p-3 bg-${cond.color}-50 rounded-2xl`}>
-                          <BarChart2 className={`w-6 h-6 text-${cond.color}-500`} />
-                        </div>
-                      </div>
                       <div style={{ width: '100%', height: 100 }} className="mb-4">
-                        <ResponsiveContainer>
+                        <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                           <LineChart
                             data={[
                               { v: 100 },
                               { v: 105 },
                               { v: 98 },
                               { v: 112 },
-                              { v: cond.value.includes('/') ? 7 : cond.value },
+                              { v: cond.value?.toString().includes('/') ? 7 : (parseFloat(cond.value) || 0) },
                             ]}
                           >
                             <Line
@@ -513,12 +778,16 @@ const PatientDashboard = () => {
                             Historical Trend
                           </p>
                         </div>
-                        <button className="text-sm font-bold text-primary opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button 
+                          onClick={() => setSelectedHistoryType(cond.name)}
+                          className="text-sm font-bold text-primary hover:text-sky-600 transition-colors"
+                        >
                           Full History →
                         </button>
                       </div>
                     </div>
-                  ))}
+                  );
+                })}
                 </div>
               </div>
 
@@ -565,6 +834,8 @@ const PatientDashboard = () => {
                       <div className="relative flex-1 group">
                         <input
                           type="text"
+                          value={symptomInput}
+                          onChange={(e) => setSymptomInput(e.target.value)}
                           placeholder="Describe how you feel..."
                           className="w-full pl-8 pr-16 py-5 bg-slate-50 border border-slate-200 rounded-3xl focus:ring-8 focus:ring-primary/5 focus:border-primary focus-aura outline-none transition-all font-bold text-slate-700"
                         />
@@ -572,9 +843,13 @@ const PatientDashboard = () => {
                           <Mic className="w-5 h-5" />
                         </button>
                       </div>
-                      <button className="px-10 py-5 bg-slate-900 text-white rounded-[2rem] font-black text-lg shadow-2xl shadow-slate-900/20 hover:shadow-slate-900/40 hover:-translate-y-1 transition-all relative overflow-hidden group/btn">
+                      <button 
+                        onClick={handleAnalyze}
+                        disabled={analyzing}
+                        className="px-10 py-5 bg-slate-900 text-white rounded-[2rem] font-black text-lg shadow-2xl shadow-slate-900/20 hover:shadow-slate-900/40 hover:-translate-y-1 transition-all relative overflow-hidden group/btn"
+                      >
                         <div className="absolute inset-0 bg-gradient-premium opacity-0 group-hover/btn:opacity-100 transition-opacity"></div>
-                        <span className="relative z-10">Analyze</span>
+                        <span className="relative z-10">{analyzing ? 'Analyzing...' : 'Analyze'}</span>
                       </button>
                     </div>
                   </div>
@@ -730,7 +1005,7 @@ const PatientDashboard = () => {
               </div>
 
               <div className="gradient-border p-10 overflow-hidden animate-fade-in-up animation-delay-300">
-                <MedicalRecords patientId={profile?.id} />
+                <MedicalRecords />
               </div>
             </>
           )}
@@ -744,6 +1019,166 @@ const PatientDashboard = () => {
           recipientName={selectedChat.name}
           onClose={() => setSelectedChat(null)}
         />
+      )}
+
+      {/* Log Vitals Modal */}
+      {showLogVitalsModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-md p-4">
+          <div className="bg-white rounded-[2rem] w-full max-w-md p-8 shadow-2xl border border-slate-100 animate-fade-in">
+            <h3 className="text-2xl font-black text-slate-900 mb-6 flex items-center gap-2">
+              <Activity className="w-6 h-6 text-primary animate-pulse" />
+              Log Your Vitals
+            </h3>
+            <form onSubmit={handleLogVitals} className="space-y-5">
+              <div>
+                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Vital Type</label>
+                <select
+                  value={vitalType}
+                  onChange={(e) => handleTypeChange(e.target.value)}
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-700 outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all"
+                >
+                  <option value="Diabetes">Diabetes (Blood Glucose)</option>
+                  <option value="Stress">Stress Level</option>
+                  <option value="Heart Rate">Heart Rate</option>
+                  <option value="Blood Pressure">Blood Pressure</option>
+                </select>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Value</label>
+                  <input
+                    type="number"
+                    step="any"
+                    required
+                    value={vitalValue}
+                    onChange={(e) => setVitalValue(e.target.value)}
+                    placeholder="Enter value"
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-700 outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Unit</label>
+                  <input
+                    type="text"
+                    required
+                    value={vitalUnit}
+                    onChange={(e) => setVitalUnit(e.target.value)}
+                    placeholder="Unit"
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-700 outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Status Indicator</label>
+                <select
+                  value={vitalStatus}
+                  onChange={(e) => setVitalStatus(e.target.value)}
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-700 outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all"
+                >
+                  <option value="IMPROVING">Improving ✅</option>
+                  <option value="NORMAL">Normal / Stable 🆗</option>
+                  <option value="ATTENTION">Needs Attention ⚠️</option>
+                </select>
+              </div>
+
+              <div className="flex gap-4 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setShowLogVitalsModal(false)}
+                  className="flex-1 py-4 bg-slate-100 text-slate-600 font-bold rounded-2xl hover:bg-slate-200 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={submittingVitals}
+                  className="flex-1 py-4 bg-slate-900 text-white font-bold rounded-2xl hover:bg-slate-800 transition-colors relative overflow-hidden group"
+                >
+                  <span className="relative z-10">{submittingVitals ? 'Saving...' : 'Submit Vitals'}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Vitals History Modal */}
+      {selectedHistoryType && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-md p-4">
+          <div className="bg-white rounded-[2rem] w-full max-w-2xl p-8 shadow-2xl border border-slate-100 animate-fade-in max-h-[85vh] flex flex-col">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-2xl font-black text-slate-900 flex items-center gap-2">
+                <BarChart2 className="w-6 h-6 text-primary" />
+                {selectedHistoryType} History
+              </h3>
+              <button 
+                onClick={() => setSelectedHistoryType(null)}
+                className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-450 hover:text-slate-600 font-bold text-lg"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto pr-1">
+              {healthMetrics.filter(m => m.type?.toLowerCase() === selectedHistoryType.toLowerCase()).length === 0 ? (
+                <div className="text-center py-12">
+                  <p className="text-slate-400 font-bold text-lg">No logged entries found for {selectedHistoryType}.</p>
+                  <p className="text-slate-350 text-sm mt-1">Use the "+ Log Vitals" button to record one.</p>
+                </div>
+              ) : (
+                <table className="w-full border-collapse">
+                  <thead>
+                    <tr className="border-b border-slate-100">
+                      <th className="text-left py-3 px-4 text-xs font-black text-slate-400 uppercase tracking-widest">Date & Time</th>
+                      <th className="text-left py-3 px-4 text-xs font-black text-slate-400 uppercase tracking-widest">Value</th>
+                      <th className="text-left py-3 px-4 text-xs font-black text-slate-400 uppercase tracking-widest">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {healthMetrics
+                      .filter(m => m.type?.toLowerCase() === selectedHistoryType.toLowerCase())
+                      .map((metric) => (
+                        <tr key={metric.id} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
+                          <td className="py-4 px-4 font-bold text-slate-600">
+                            {new Date(metric.recordedAt).toLocaleString(undefined, {
+                              year: 'numeric',
+                              month: 'short',
+                              day: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })}
+                          </td>
+                          <td className="py-4 px-4 font-black text-slate-900 text-lg">
+                            {metric.value} <span className="text-sm font-bold text-slate-400">{metric.unit}</span>
+                          </td>
+                          <td className="py-4 px-4">
+                            <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold ${
+                              metric.status === 'IMPROVING' || metric.status === 'NORMAL' 
+                                ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' 
+                                : 'bg-amber-50 text-amber-600 border border-amber-100'
+                            }`}>
+                              {metric.status === 'IMPROVING' ? 'Improving' : metric.status === 'NORMAL' ? 'Normal / Stable' : 'Needs attention'}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+            
+            <div className="mt-6 pt-4 border-t border-slate-100 flex justify-end">
+              <button
+                onClick={() => setSelectedHistoryType(null)}
+                className="px-6 py-3 bg-slate-900 text-white font-bold rounded-xl hover:bg-slate-800 transition-colors"
+              >
+                Close History
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

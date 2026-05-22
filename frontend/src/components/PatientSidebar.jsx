@@ -10,6 +10,7 @@ import {
   LifeBuoy,
 } from 'lucide-react';
 import NavProfile from './NavProfile';
+import { playTapSound } from '../utils/audio';
 
 const PatientSidebar = () => {
   const navigate = useNavigate();
@@ -33,7 +34,10 @@ const PatientSidebar = () => {
       <div className="p-10">
         <div
           className="flex items-center gap-4 group cursor-pointer"
-          onClick={() => navigate('/patient/dashboard')}
+          onClick={() => {
+            playTapSound();
+            navigate('/patient/dashboard');
+          }}
         >
           <div className="w-14 h-14 bg-gradient-to-br from-slate-900 to-slate-800 rounded-2xl flex items-center justify-center shadow-xl shadow-slate-900/20 group-hover:scale-110 transition-transform duration-300">
             <Heart className="w-7 h-7 text-white fill-white/20" />
@@ -59,6 +63,7 @@ const PatientSidebar = () => {
             <Link
               key={item.label}
               to={item.path}
+              onClick={playTapSound}
               className={`flex items-center gap-4 px-6 py-4 rounded-2xl font-bold transition-all duration-300 group relative overflow-hidden ${isActive ? 'bg-slate-900 text-white shadow-xl shadow-slate-900/20 translate-x-2' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900 hover:translate-x-1'}`}
             >
               {isActive && (
@@ -75,7 +80,10 @@ const PatientSidebar = () => {
 
       <div className="p-8">
         <div
-          onClick={() => navigate('/patient/support')}
+          onClick={() => {
+            playTapSound();
+            navigate('/patient/support');
+          }}
           className="bg-gradient-to-br from-indigo-50 to-sky-50 p-6 rounded-3xl border border-indigo-100/50 relative overflow-hidden group mb-6 cursor-pointer hover:shadow-lg transition-all"
         >
           <div className="absolute top-0 right-0 w-20 h-20 bg-indigo-500/10 rounded-full -mr-10 -mt-10 blur-xl"></div>
@@ -89,7 +97,10 @@ const PatientSidebar = () => {
         <NavProfile />
 
         <button
-          onClick={handleLogout}
+          onClick={() => {
+            playTapSound();
+            handleLogout();
+          }}
           className="flex items-center gap-4 w-full px-6 py-4 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-2xl font-bold transition-all group mt-2"
         >
           <LogOut className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />

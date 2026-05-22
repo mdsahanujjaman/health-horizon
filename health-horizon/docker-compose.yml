@@ -22,7 +22,7 @@ services:
   # Machine Learning Service
   ml-service:
     build:
-      context: ./health-horizon/ml-service
+      context: ./ml-service
       dockerfile: Dockerfile
     container_name: health-horizon-ml
     ports:
@@ -35,7 +35,7 @@ services:
   # Backend Service (Node.js)
   backend:
     build:
-      context: ./health-horizon
+      context: .
       dockerfile: Dockerfile
     container_name: health-horizon-backend
     ports:
@@ -56,7 +56,7 @@ services:
   # Frontend Service (Vite + Nginx)
   frontend:
     build:
-      context: ./health-horizon-frontend
+      context: ../frontend
       dockerfile: Dockerfile
     container_name: health-horizon-frontend
     ports:

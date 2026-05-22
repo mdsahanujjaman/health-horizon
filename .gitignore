@@ -4,3 +4,19 @@ target/
 uploads/
 frontend/node_modules/
 health-horizon/node_modules/
+
+# IDE
+.idea/
+.vscode/
+
+# Build output
+frontend/dist/
+
+# Test artifacts
+frontend/test-results/
+frontend/playwright-report/
+frontend/test_*.txt
+
+# OS files
+.DS_Store
+Thumbs.db

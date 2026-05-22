@@ -62,9 +62,30 @@ const PatientProfile = () => {
     setSaving(true);
     setMessage({ type: '', text: '' });
 
+    const cleanedData = {
+      ...formData,
+      dateOfBirth: formData.dateOfBirth || null,
+      height: formData.height ? parseFloat(formData.height) : null,
+      weight: formData.weight ? parseFloat(formData.weight) : null,
+    };
+
     try {
-      await api.post('/patients', formData);
+      await api.post('/patients', cleanedData);
       setMessage({ type: 'success', text: 'Profile updated successfully!' });
+      
+      const response = await api.get('/patients/me');
+      const data = response.data || {};
+      setFormData({
+        dateOfBirth: data.dateOfBirth || '',
+        gender: data.gender || 'MALE',
+        bloodGroup: data.bloodGroup || '',
+        address: data.address || '',
+        emergencyContact: data.emergencyContact || '',
+        height: data.height || '',
+        weight: data.weight || '',
+        medicalConditions: data.medicalConditions || '',
+        calmMode: data.calmMode || false,
+      });
     } catch (err) {
       console.error('Failed to update profile', err);
       setMessage({ type: 'error', text: 'Failed to update profile. Please try again.' });

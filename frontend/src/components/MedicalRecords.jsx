@@ -14,7 +14,8 @@ const MedicalRecords = ({ patientId, isReadOnly = false }) => {
 
   const fetchRecords = useCallback(async () => {
     try {
-      const res = await api.get(`/medical-records/patient/${patientId}`);
+      const endpoint = patientId ? `/medical-records/patient/${patientId}` : '/medical-records/my';
+      const res = await api.get(endpoint);
       setRecords(res.data);
     } catch (err) {
       console.error('Failed to fetch records', err);
@@ -24,9 +25,8 @@ const MedicalRecords = ({ patientId, isReadOnly = false }) => {
   }, [patientId]);
 
   useEffect(() => {
-    if (!patientId) return;
     fetchRecords();
-  }, [patientId, fetchRecords]);
+  }, [fetchRecords]);
 
   const handleFileChange = (e) => {
     setSelectedFile(e.target.files[0]);
@@ -42,7 +42,7 @@ const MedicalRecords = ({ patientId, isReadOnly = false }) => {
     formData.append('description', description);
 
     try {
-      await api.post('/medical-records/upload', formData, {
+      await api.post('/medical-records', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
       setShowUploadModal(false);

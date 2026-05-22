@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
+  Briefcase,
+  Activity,
   User,
   Calendar,
   Users,
@@ -10,18 +12,24 @@ import {
   CheckCircle2,
   HeartHandshake,
 } from 'lucide-react';
+import api from '../services/api';
 
 const CompleteProfile = () => {
   const navigate = useNavigate();
   const role = localStorage.getItem('role') || 'PATIENT';
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState(1);
+  const [credentialFile, setCredentialFile] = useState(null);
   const [formData, setFormData] = useState({
     fullName: '',
     beneficiaryName: '', // For Caregivers
     age: '',
     gender: '',
+    height: '',
+    weight: '',
     healthGoal: '',
+    experienceYears: '',
+    consultationFee: '',
     bio: '',
   });
 
@@ -30,21 +38,36 @@ const CompleteProfile = () => {
   };
 
   const handleNext = () => {
-    // Doctors skip health goals
-    if (role === 'DOCTOR') {
-      handleSubmit();
-      return;
-    }
-
+    // Doctors go to step 2 for stats
     if (step < 2) setStep(step + 1);
     else handleSubmit();
   };
 
   const handleSubmit = async () => {
     setLoading(true);
-    // Simulate API call
-    setTimeout(() => {
-      setLoading(false);
+    try {
+      const endpoint = role === 'DOCTOR' ? '/doctors' : '/patients';
+      console.log(`Submitting profile to ${endpoint} with role ${role}`);
+      const res = await api.post(endpoint, {
+        ...formData,
+        dateOfBirth: formData.age ? new Date(new Date().setFullYear(new Date().getFullYear() - parseInt(formData.age))).toISOString().split('T')[0] : null,
+        medicalConditions: formData.healthGoal || '',
+      });
+      console.log('Profile update response:', res.status, res.data);
+
+      if (role === 'DOCTOR' && credentialFile) {
+        const fileData = new FormData();
+        fileData.append('file', credentialFile);
+        try {
+          await api.post('/doctors/upload-credential', fileData, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+          });
+          console.log('Credential uploaded successfully');
+        } catch (err) {
+          console.error('Failed to upload credential', err);
+        }
+      }
+
       switch (role) {
         case 'ADMIN':
           navigate('/admin/dashboard');
@@ -62,7 +85,6 @@ const CompleteProfile = () => {
           navigate('/handler/dashboard');
           break;
         case 'CAREGIVER':
-          // Redirect Caregivers to Patient Dashboard (context handled by backend/localStorage)
           navigate('/patient/dashboard');
           break;
         case 'PATIENT':
@@ -70,7 +92,11 @@ const CompleteProfile = () => {
           navigate('/patient/dashboard');
           break;
       }
-    }, 1500);
+    } catch (err) {
+      console.error('Failed to update profile', err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -134,7 +160,7 @@ const CompleteProfile = () => {
                         name="beneficiaryName"
                         type="text"
                         required
-                        className="w-full pl-14 pr-6 py-5 bg-white border border-slate-200 rounded-[2rem] focus:ring-8 focus:ring-primary/5 focus:border-primary focus-aura outline-none transition-all font-bold text-slate-800"
+                        className="input-premium pl-14 bg-white/50"
                         placeholder="E.g. Sarah Smith (My Mother)"
                         value={formData.beneficiaryName}
                         onChange={handleChange}
@@ -153,7 +179,7 @@ const CompleteProfile = () => {
                       name="fullName"
                       type="text"
                       required
-                      className="w-full pl-14 pr-6 py-5 bg-white/50 border border-slate-200 rounded-[2rem] focus:ring-8 focus:ring-primary/5 focus:border-primary focus-aura outline-none transition-all font-bold text-slate-800"
+                      className="input-premium pl-14 bg-white/50"
                       placeholder="E.g. Alexander Pierce"
                       value={formData.fullName}
                       onChange={handleChange}
@@ -163,7 +189,7 @@ const CompleteProfile = () => {
 
                 <div className="grid grid-cols-2 gap-6">
                   <div>
-                    <label className="block text-sm font-black text-slate-700 ml-1 mb-3 uppercase tracking-widest">
+                    <label className="block text-sm font-black text-slate-700 ml-1 mb-3 uppercase tracking-widest text-xs">
                       Age
                     </label>
                     <div className="relative group/input">
@@ -172,7 +198,7 @@ const CompleteProfile = () => {
                         name="age"
                         type="number"
                         required
-                        className="w-full pl-14 pr-6 py-5 bg-white/50 border border-slate-200 rounded-[2rem] focus:ring-8 focus:ring-primary/5 focus:border-primary focus-aura outline-none transition-all font-bold text-slate-800"
+                        className="input-premium pl-14 bg-white/50"
                         placeholder="24"
                         value={formData.age}
                         onChange={handleChange}
@@ -180,24 +206,122 @@ const CompleteProfile = () => {
                     </div>
                   </div>
                   <div>
-                    <label className="block text-sm font-black text-slate-700 ml-1 mb-3 uppercase tracking-widest">
+                    <label className="block text-sm font-black text-slate-700 ml-1 mb-3 uppercase tracking-widest text-xs">
                       Gender
                     </label>
                     <div className="relative group/input">
                       <Users className="absolute left-5 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 group-focus-within/input:text-primary transition-colors" />
                       <select
                         name="gender"
-                        className="w-full pl-14 pr-6 py-5 bg-white/50 border border-slate-200 rounded-[2rem] focus:ring-8 focus:ring-primary/5 focus:border-primary focus-aura outline-none transition-all font-bold text-slate-800 appearance-none cursor-pointer"
+                        className="input-premium pl-14 bg-white/50 appearance-none cursor-pointer"
                         value={formData.gender}
                         onChange={handleChange}
                       >
                         <option value="">Select</option>
-                        <option value="male">Male</option>
-                        <option value="female">Female</option>
-                        <option value="other">Other</option>
+                        <option value="MALE">Male</option>
+                        <option value="FEMALE">Female</option>
+                        <option value="OTHER">Other</option>
                       </select>
                     </div>
                   </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-sm font-black text-slate-700 ml-1 mb-3 uppercase tracking-widest text-xs">
+                      Height (cm)
+                    </label>
+                    <div className="relative group/input">
+                      <Activity className="absolute left-5 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 group-focus-within/input:text-primary transition-colors" />
+                      <input
+                        name="height"
+                        type="number"
+                        className="input-premium pl-14 bg-white/50"
+                        placeholder="175"
+                        value={formData.height}
+                        onChange={handleChange}
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-black text-slate-700 ml-1 mb-3 uppercase tracking-widest text-xs">
+                      Weight (kg)
+                    </label>
+                    <div className="relative group/input">
+                      <Activity className="absolute left-5 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 group-focus-within/input:text-primary transition-colors" />
+                      <input
+                        name="weight"
+                        type="number"
+                        className="input-premium pl-14 bg-white/50"
+                        placeholder="70"
+                        value={formData.weight}
+                        onChange={handleChange}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : role === 'DOCTOR' ? (
+              <div className="space-y-6 animate-fade-in-up">
+                <div className="grid grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-sm font-black text-slate-700 ml-1 mb-3 uppercase tracking-widest text-xs">
+                      Years Experience
+                    </label>
+                    <div className="relative group/input">
+                      <Briefcase className="absolute left-5 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 group-focus-within/input:text-primary transition-colors" />
+                      <input
+                        name="experienceYears"
+                        type="number"
+                        className="input-premium pl-14 bg-white/50"
+                        placeholder="5"
+                        value={formData.experienceYears}
+                        onChange={handleChange}
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-black text-slate-700 ml-1 mb-3 uppercase tracking-widest text-xs">
+                      Fee ($)
+                    </label>
+                    <div className="relative group/input">
+                      <Activity className="absolute left-5 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 group-focus-within/input:text-primary transition-colors" />
+                      <input
+                        name="consultationFee"
+                        type="number"
+                        className="input-premium pl-14 bg-white/50"
+                        placeholder="50"
+                        value={formData.consultationFee}
+                        onChange={handleChange}
+                      />
+                    </div>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-black text-slate-700 ml-1 mb-3 uppercase tracking-widest text-xs">
+                    Short Bio
+                  </label>
+                  <textarea
+                    name="bio"
+                    className="input-premium bg-white/50 h-28"
+                    placeholder="Tell us about your medical background..."
+                    value={formData.bio}
+                    onChange={handleChange}
+                  ></textarea>
+                </div>
+                <div className="bg-primary/5 p-6 rounded-[2rem] border border-primary/10">
+                  <label className="block text-sm font-black text-primary ml-1 mb-2 uppercase tracking-widest text-xs">
+                    Upload Medical License (Required)
+                  </label>
+                  <p className="text-xs text-slate-500 font-bold mb-4 ml-1">
+                    Please provide your medical degree or practice certificate for governance review.
+                  </p>
+                  <input
+                    type="file"
+                    accept=".pdf,.jpg,.jpeg,.png"
+                    onChange={(e) => setCredentialFile(e.target.files[0])}
+                    className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-600 focus:outline-none file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-black file:bg-primary file:text-white hover:file:bg-sky-600 transition-all cursor-pointer"
+                  />
                 </div>
               </div>
             ) : (
@@ -231,31 +355,32 @@ const CompleteProfile = () => {
               </div>
             )}
 
-            <button
-              onClick={handleNext}
-              disabled={
-                loading ||
-                (step === 1 &&
-                  (!formData.fullName ||
-                    !formData.age ||
-                    !formData.gender ||
-                    (role === 'CAREGIVER' && !formData.beneficiaryName))) ||
-                (step === 2 && !formData.healthGoal)
-              }
-              className="w-full py-6 bg-slate-900 text-white rounded-[2rem] font-black text-lg shadow-2xl shadow-slate-900/20 hover:shadow-slate-900/40 hover:-translate-y-1 active:translate-y-0 transition-all disabled:opacity-50 flex items-center justify-center gap-3 relative group overflow-hidden"
-            >
-              <div className="absolute inset-0 bg-gradient-premium opacity-0 group-hover:opacity-100 transition-opacity"></div>
-              <span className="relative z-10 flex items-center gap-3">
-                {loading ? (
-                  <Loader2 className="animate-spin h-6 w-6" />
-                ) : (
-                  <>
-                    {step === 1 ? 'Continue' : 'Complete Registration'}
-                    <ArrowRight className="w-6 h-6 group-hover:translate-x-1 transition-transform" />
-                  </>
-                )}
-              </span>
-            </button>
+              <button
+                onClick={handleNext}
+                disabled={
+                  loading ||
+                  (step === 1 &&
+                    (!formData.fullName ||
+                      !formData.age ||
+                      !formData.gender ||
+                      (role === 'CAREGIVER' && !formData.beneficiaryName))) ||
+                  (step === 2 && role !== 'DOCTOR' && !formData.healthGoal) ||
+                  (step === 2 && role === 'DOCTOR' && (!formData.experienceYears || !formData.consultationFee || !formData.bio))
+                }
+                className="btn-premium w-full py-5 text-lg mt-8"
+              >
+                <div className="absolute inset-0 bg-gradient-premium opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                <span className="relative z-10 flex items-center gap-3">
+                  {loading ? (
+                    <Loader2 className="animate-spin h-6 w-6" />
+                  ) : (
+                    <>
+                      {step === 1 ? 'Continue' : 'Complete Registration'}
+                      <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                    </>
+                  )}
+                </span>
+              </button>
           </div>
         </div>
 

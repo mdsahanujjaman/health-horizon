@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { LogIn, Mail, Lock, Loader2, ArrowRight } from 'lucide-react';
 import api from '../services/api';
+import { playLoginWelcomeSound } from '../utils/audio';
 
 const Login = () => {
   const navigate = useNavigate();
@@ -35,6 +36,8 @@ const Login = () => {
       localStorage.setItem('role', role);
       localStorage.setItem('verificationStatus', verificationStatus);
       if (profilePictureUrl) localStorage.setItem('profilePictureUrl', profilePictureUrl);
+
+      playLoginWelcomeSound();
 
       if (verificationStatus === 'PENDING') {
         navigate('/verification-pending');
@@ -82,6 +85,7 @@ const Login = () => {
     setTimeout(() => {
       setLoading(false);
       localStorage.setItem('token', 'mock-google-token');
+      playLoginWelcomeSound();
       navigate('/complete-profile');
     }, 1200);
   };
@@ -92,6 +96,7 @@ const Login = () => {
       setLoading(false);
       setShowOtpModal(false);
       localStorage.setItem('token', 'mock-phone-token');
+      playLoginWelcomeSound();
       navigate('/complete-profile');
     }, 1500);
   };
@@ -176,7 +181,8 @@ const Login = () => {
                       name="email"
                       type="email"
                       required
-                      className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-primary/10 focus:border-primary focus-aura outline-none transition-all font-bold text-slate-700"
+                      autoComplete="email"
+                      className="input-premium pl-12"
                       placeholder="name@example.com"
                       value={formData.email}
                       onChange={handleChange}
@@ -194,7 +200,8 @@ const Login = () => {
                       name="password"
                       type="password"
                       required
-                      className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-primary/10 focus:border-primary focus-aura outline-none transition-all font-bold text-slate-700"
+                      autoComplete="current-password"
+                      className="input-premium pl-12"
                       placeholder="••••••••"
                       value={formData.password}
                       onChange={handleChange}
@@ -224,7 +231,7 @@ const Login = () => {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-4 bg-slate-900 text-white rounded-xl font-black text-lg shadow-xl shadow-slate-900/20 hover:shadow-slate-900/30 hover:-translate-y-1 active:translate-y-0 transition-all disabled:opacity-50 flex items-center justify-center gap-2 overflow-hidden relative group"
+                className="btn-premium w-full py-4 text-lg overflow-hidden relative group"
               >
                 <div className="absolute inset-0 bg-gradient-premium opacity-0 group-hover:opacity-100 transition-opacity"></div>
                 <span className="relative z-10 flex items-center gap-2">
@@ -250,7 +257,7 @@ const Login = () => {
                 <button
                   type="button"
                   onClick={handleGoogleLogin}
-                  className="flex items-center justify-center gap-2 py-3 border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors font-bold text-slate-700"
+                  className="btn-outline w-full flex items-center justify-center gap-2"
                 >
                   <svg className="w-5 h-5" viewBox="0 0 24 24">
                     <path
@@ -275,7 +282,7 @@ const Login = () => {
                 <button
                   type="button"
                   onClick={() => setShowPhoneInputModal(true)}
-                  className="flex items-center justify-center gap-2 py-3 border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors font-bold text-slate-700"
+                  className="btn-outline w-full flex items-center justify-center gap-2"
                 >
                   <span className="w-5 h-5 bg-green-500 rounded flex items-center justify-center text-white text-[10px]">
                     📞
@@ -306,14 +313,14 @@ const Login = () => {
             <input
               type="tel"
               placeholder="+91 00000 00000"
-              className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-bold mb-4"
+              className="input-premium mb-4"
               value={phoneNumber}
               onChange={(e) => setPhoneNumber(e.target.value)}
             />
             <div className="flex gap-3">
               <button
                 onClick={() => setShowPhoneInputModal(false)}
-                className="flex-1 py-3 text-slate-500 font-bold"
+                className="btn-outline flex-1"
               >
                 Cancel
               </button>
@@ -322,7 +329,7 @@ const Login = () => {
                   setShowPhoneInputModal(false);
                   setShowOtpModal(true);
                 }}
-                className="flex-1 py-3 bg-slate-900 text-white rounded-xl font-bold"
+                className="btn-premium flex-1"
               >
                 Next
               </button>
@@ -338,20 +345,20 @@ const Login = () => {
             <input
               type="text"
               placeholder="000000"
-              className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-black tracking-widest text-center text-2xl mb-4"
+              className="input-premium text-center tracking-widest text-2xl mb-4 py-4 font-black"
               value={otp}
               onChange={(e) => setOtp(e.target.value)}
             />
             <button
               onClick={verifyOtp}
               disabled={otp.length !== 6 || loading}
-              className="w-full py-3 bg-slate-900 text-white rounded-xl font-bold"
+              className="btn-premium w-full"
             >
               {loading ? <Loader2 className="animate-spin h-5 w-5 mx-auto" /> : 'Verify'}
             </button>
             <button
               onClick={() => setShowOtpModal(false)}
-              className="w-full py-3 text-slate-500 font-bold mt-2"
+              className="btn-outline w-full mt-4"
             >
               Cancel
             </button>

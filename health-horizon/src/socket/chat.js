@@ -7,6 +7,7 @@ const initSocket = (io) => {
         const userId = socket.handshake.query.userId;
         if (userId) {
             userSocketMap[userId] = socket.id;
+            socket.join(`user:${userId}`);
             console.log(`[Socket] User ${userId} connected`);
         }
 

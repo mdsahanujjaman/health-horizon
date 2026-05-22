@@ -1,6 +1,9 @@
 const router = require('express').Router();
 const { authenticate } = require('../middleware/auth');
 const { Notification } = require('../models/index');
+router.get('/', authenticate, async (req, res, next) => {
+    try { res.json(await Notification.findAll({ where: { recipientId: req.user.id }, order: [['timestamp', 'DESC']] })); } catch (err) { next(err); }
+});
 router.get('/my', authenticate, async (req, res, next) => {
     try { res.json(await Notification.findAll({ where: { recipientId: req.user.id }, order: [['timestamp', 'DESC']] })); } catch (err) { next(err); }
 });
@@ -11,6 +14,11 @@ router.put('/:id/read', authenticate, async (req, res, next) => {
     try { const n = await Notification.findByPk(req.params.id); if (!n) return res.status(404).json({ message: 'Not found' }); n.isRead = true; await n.save(); res.json(n); } catch (err) { next(err); }
 });
 router.post('/', authenticate, async (req, res, next) => {
-    try { res.json(await Notification.create({ ...req.body, timestamp: new Date() })); } catch (err) { next(err); }
+    try {
+        const n = await Notification.create({ ...req.body, timestamp: new Date() });
+        const io = req.app.get('io');
+        if (io) io.to(`user:${n.recipientId}`).emit('notification', n);
+        res.json(n);
+    } catch (err) { next(err); }
 });
 module.exports = router;

@@ -242,7 +242,7 @@ const AdminDashboard = () => {
               </div>
             </div>
             <div className="h-72">
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                 <BarChart
                   data={
                     analytics
@@ -370,7 +370,7 @@ const AdminDashboard = () => {
               Engagement Balance
             </h3>
             <div className="h-64 w-full">
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                 <PieChart>
                   <Pie
                     data={[

@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Bell, X, Info, AlertTriangle, CheckCircle, AlertOctagon } from 'lucide-react';
-import SockJS from 'sockjs-client';
-import { Stomp } from '@stomp/stompjs';
-import api from '../services/api';
+import { io } from 'socket.io-client';
+import api, { BASE_URL } from '../services/api';
 
 const NotificationBell = () => {
   const [notifications, setNotifications] = useState([]);
@@ -12,7 +11,7 @@ const NotificationBell = () => {
   const fetchNotifications = async () => {
     try {
       const res = await api.get('/notifications');
-      setNotifications(res.data);
+      setNotifications(Array.isArray(res.data) ? res.data : []);
     } catch (err) {
       console.error('Failed to fetch notifications', err);
     }
@@ -20,33 +19,24 @@ const NotificationBell = () => {
 
   useEffect(() => {
     if (!userId) return;
-    const init = async () => {
-      // Fetch initial notifications
-      await fetchNotifications();
-    };
-    init();
+    
+    fetchNotifications();
 
-    // WebSocket setup
-    const socket = new SockJS('http://localhost:8080/ws');
-    const client = Stomp.over(socket);
-    client.debug = () => { }; // Disable logs
+    // Socket.io setup
+    const socket = io(BASE_URL, {
+      query: { userId }
+    });
 
-    client.connect(
-      {},
-      () => {
-        client.subscribe(`/topic/notifications/${userId}`, (payload) => {
-          const newNotification = JSON.parse(payload.body);
-          setNotifications((prev) => [newNotification, ...prev]);
-          // Optional: Play sound or show toast
-        });
-      },
-      (err) => {
-        console.error('Notification WebSocket error:', err);
-      }
-    );
+    socket.on('notification', (newNotification) => {
+      setNotifications((prev) => [newNotification, ...prev]);
+    });
+
+    socket.on('connect_error', (err) => {
+      console.error('Notification Socket error:', err);
+    });
 
     return () => {
-      if (client) client.disconnect();
+      if (socket) socket.disconnect();
     };
   }, [userId]);
 
@@ -80,7 +70,7 @@ const NotificationBell = () => {
     <div className="relative">
       <button
         onClick={() => setShowDropdown(!showDropdown)}
-        className="p-2 text-gray-400 hover:text-primary transition-colors relative bg-white rounded-lg shadow-sm border border-gray-100"
+        className="p-2 text-slate-400 hover:text-primary transition-colors relative bg-white rounded-xl shadow-sm border border-slate-200 hover:border-slate-300"
       >
         <Bell className="w-5 h-5 group-hover:rotate-12 transition-transform" />
         {unreadCount > 0 && (
@@ -91,7 +81,7 @@ const NotificationBell = () => {
       </button>
 
       {showDropdown && (
-        <div className="absolute right-0 mt-3 w-80 bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden z-50 animate-in fade-in slide-in-from-top-2">
+        <div className="absolute right-0 mt-3 w-80 card-modern z-50 animate-in fade-in slide-in-from-top-2">
           <div className="p-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
             <h3 className="font-bold text-gray-900">Notifications</h3>
             <button
