@@ -1,0 +1,42 @@
+---
+- name: Deploy Health Horizon application
+  hosts: health_horizon
+  become: true
+  gather_facts: true
+
+  vars:
+    aws_region: ap-south-1
+    aws_account_id: "882597581176"
+    ecr_registry: "{{ aws_account_id }}.dkr.ecr.{{ aws_region }}.amazonaws.com"
+    app_directory: /opt/health-horizon
+
+  tasks:
+    - name: Create application directory
+      ansible.builtin.file:
+        path: "{{ app_directory }}"
+        state: directory
+        owner: ubuntu
+        group: ubuntu
+        mode: "0750"
+
+    - name: Verify Docker is installed
+      ansible.builtin.command:
+        cmd: docker --version
+      changed_when: false
+
+    - name: Verify Docker Compose is installed
+      ansible.builtin.command:
+        cmd: docker compose version
+      changed_when: false
+
+    - name: Authenticate Docker with Amazon ECR
+      ansible.builtin.shell:
+        cmd: >
+          aws ecr get-login-password --region {{ aws_region }}
+          | docker login --username AWS --password-stdin {{ ecr_registry }}
+      become_user: ubuntu
+      no_log: true
+
+    - name: Report deployment preparation
+      ansible.builtin.debug:
+        msg: "Health Horizon deployment prerequisites verified."
