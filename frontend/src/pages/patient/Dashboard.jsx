@@ -328,7 +328,7 @@ const PatientDashboard = () => {
         }
 
         try {
-          const labRes = await api.get(`/lab/patient/${profileRes.data.id}`);
+          const labRes = await api.get('/lab/my');
           setLabResults(labRes.data);
         } catch (subErr) {
           console.log('Optional lab data not found');

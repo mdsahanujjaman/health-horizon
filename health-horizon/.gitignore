@@ -16,3 +16,14 @@ Thumbs.db
 # IDE
 .vscode/
 .idea/
+
+# Environment and secrets
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Coverage and test reports
+coverage/
+playwright-report/
+test-results/

@@ -1,59 +1,78 @@
 services:
-  # Database Service
   postgres:
     image: postgres:15
     container_name: health-horizon-db
     environment:
-      POSTGRES_DB: health_horizon
-      POSTGRES_USER: healthuser
-      POSTGRES_PASSWORD: healthpass
+      POSTGRES_DB: ${DB_NAME:?DB_NAME is required}
+      POSTGRES_USER: ${DB_USER:?DB_USER is required}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
     ports:
-      - "5433:5432"
+      - "127.0.0.1:5433:5432"
     volumes:
       - health_horizon_db_v2:/var/lib/postgresql/data
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U healthuser" ]
+      test:
+        - CMD-SHELL
+        - pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 10s
     networks:
       - default
+    restart: unless-stopped
 
-  # Machine Learning Service
   ml-service:
     build:
       context: ./ml-service
       dockerfile: Dockerfile
     container_name: health-horizon-ml
-    ports:
-      - "5000:5000"
+    expose:
+      - "5000"
     environment:
-      - FLASK_ENV=production
+      FLASK_ENV: production
     networks:
       - default
+    restart: unless-stopped
 
-  # Backend Service (Node.js)
   backend:
     build:
       context: .
       dockerfile: Dockerfile
     container_name: health-horizon-backend
     ports:
-      - "8081:8081"
+      - "127.0.0.1:8081:8080"
     environment:
-      - DB_HOST=postgres
-      - DB_PORT=5432
-      - DB_NAME=health_horizon
-      - DB_USER=healthuser
-      - DB_PASSWORD=healthpass
-      - ML_SERVICE_URL=http://ml-service:5000
+      PORT: 8080
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      JWT_EXPIRY: ${JWT_EXPIRY:-86400000}
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:?DB_NAME is required}
+      DB_USER: ${DB_USER:?DB_USER is required}
+      DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
+      ML_SERVICE_URL: http://ml-service:5000
+      UPLOAD_DIR: /app/uploads
+    volumes:
+      - health_horizon_uploads:/app/uploads
     depends_on:
       postgres:
         condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "require('http').get('http://127.0.0.1:8080/actuator/health', r => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
     networks:
       - default
+    restart: unless-stopped
 
-  # Frontend Service (Vite + Nginx)
   frontend:
     build:
       context: ../frontend
@@ -62,14 +81,15 @@ services:
     ports:
       - "80:80"
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     networks:
       - default
-    restart: always
+    restart: unless-stopped
 
 volumes:
   health_horizon_db_v2:
-
+  health_horizon_uploads:
 
 networks:
   default:

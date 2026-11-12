@@ -1,7 +1,12 @@
+
 node_modules
 dist
-package-lock.json
 .git
 .github
 .vscode
-README.md
+.env
+.env.*
+!.env.example
+coverage
+playwright-report
+test-results

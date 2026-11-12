@@ -39,14 +39,42 @@ const RecordHandlerDashboard = () => {
 
   const handleVerify = async (testId) => {
     setVerifying(testId);
+
     try {
-      const verifierName = 'Compliance Officer'; // Mocked name
-      await api.post(`/lab/verify/${testId}?verifierName=${encodeURIComponent(verifierName)}`);
-      fetchTestsToVerify();
+      await api.post(`/lab/verify/${testId}`);
+      await fetchTestsToVerify();
+      alert('Laboratory report verified successfully.');
     } catch (err) {
-      console.error('Verification failed', err);
+      console.error('Verification failed:', err);
+      alert(err.response?.data?.message || 'Verification failed.');
     } finally {
       setVerifying(null);
+    }
+  };
+
+  const handlePreview = async (testId) => {
+    try {
+      const response = await api.get(`/lab/${testId}/report`, {
+        responseType: 'blob'
+      });
+
+      const contentType =
+        response.headers['content-type'] || 'application/octet-stream';
+
+      const file = new Blob([response.data], { type: contentType });
+      const objectUrl = URL.createObjectURL(file);
+      const link = document.createElement('a');
+
+      link.href = objectUrl;
+      link.download = `lab-report-${testId}`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+
+      URL.revokeObjectURL(objectUrl);
+    } catch (err) {
+      console.error('Report download failed:', err);
+      alert(err.response?.data?.message || 'Unable to download report.');
     }
   };
 
@@ -254,15 +282,14 @@ const RecordHandlerDashboard = () => {
                           </div>
                         </div>
                         <div className="flex gap-4 w-full lg:w-auto">
-                          <a
-                            href={test.labReportUrl}
-                            target="_blank"
-                            rel="noreferrer"
+                          <button
+                            type="button"
+                            onClick={() => handlePreview(test.id)}
                             className="flex items-center gap-3 px-8 py-5 bg-white border-2 border-emerald-100 text-emerald-600 rounded-[1.5rem] font-black uppercase text-xs tracking-widest hover:bg-emerald-50 transition-all shadow-xl shadow-emerald-500/5 hover:-translate-y-1"
                           >
                             <ExternalLink className="w-5 h-5" />
-                            Preview
-                          </a>
+                            Download Report
+                          </button>
                           <button
                             onClick={() => handleVerify(test.id)}
                             disabled={verifying === test.id}

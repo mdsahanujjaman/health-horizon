@@ -17,6 +17,7 @@ const LabDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [pendingTests, setPendingTests] = useState([]);
   const [uploading, setUploading] = useState(null);
+  const [uploadFiles, setUploadFiles] = useState({});
 
   const fetchPendingTests = useCallback(async () => {
     try {
@@ -34,16 +35,31 @@ const LabDashboard = () => {
     fetchPendingTests();
   }, [fetchPendingTests]);
 
-  const handleUpload = async (testId) => {
+  const handleUpload = async (testId, file) => {
+    if (!file) {
+      alert('Please select a report file first.');
+      return;
+    }
+
     setUploading(testId);
+
     try {
-      // Simulated upload - in real app would be a file upload to S3/Cloudinary
-      // and then saving the URL to our backend
-      const mockUrl = `https://storage.healthhorizon.com/reports/report_${testId}.pdf`;
-      await api.post(`/lab/upload/${testId}?reportUrl=${encodeURIComponent(mockUrl)}`);
-      fetchPendingTests();
+      const formData = new FormData();
+      formData.append('file', file);
+
+      await api.post(`/lab/${testId}/upload-report`, formData);
+
+      setUploadFiles((previous) => {
+        const updated = { ...previous };
+        delete updated[testId];
+        return updated;
+      });
+
+      await fetchPendingTests();
+      alert('Laboratory report uploaded successfully.');
     } catch (err) {
-      console.error('Upload failed', err);
+      console.error('Report upload failed:', err);
+      alert(err.response?.data?.message || 'Report upload failed.');
     } finally {
       setUploading(null);
     }
@@ -234,20 +250,34 @@ const LabDashboard = () => {
                             </select>
                           </div>
                         </div>
-                        <button
-                          onClick={() => handleUpload(test.id)}
-                          disabled={uploading === test.id}
-                          className="w-full flex items-center justify-center gap-3 px-8 py-5 bg-slate-900 text-white rounded-[1.5rem] font-black uppercase text-sm tracking-widest hover:shadow-2xl hover:shadow-slate-900/20 hover:-translate-y-1 transition-all disabled:opacity-50 relative overflow-hidden group/btn"
-                        >
-                          <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/20 to-primary/20 opacity-0 group-hover/btn:opacity-100 transition-opacity"></div>
-                          {uploading === test.id ? (
-                            <Loader2 className="w-5 h-5 animate-spin" />
-                          ) : (
-                            <>
-                              <CheckCircle className="w-5 h-5 text-primary" /> Finalize Results
-                            </>
-                          )}
-                        </button>
+                        <div className="space-y-3">
+                          <input
+                            type="file"
+                            accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
+                            onChange={(event) => {
+                              const file = event.target.files?.[0];
+                              setUploadFiles((previous) => ({
+                                ...previous,
+                                [test.id]: file || null
+                              }));
+                            }}
+                            className="w-full text-sm text-slate-600 file:mr-4 file:rounded-xl file:border-0 file:bg-slate-100 file:px-4 file:py-3 file:font-bold file:text-slate-700"
+                          />
+                          <button
+                            onClick={() => handleUpload(test.id, uploadFiles[test.id])}
+                            disabled={uploading === test.id || !uploadFiles[test.id]}
+                            className="w-full flex items-center justify-center gap-3 px-8 py-5 bg-slate-900 text-white rounded-[1.5rem] font-black uppercase text-sm tracking-widest hover:shadow-2xl hover:shadow-slate-900/20 hover:-translate-y-1 transition-all disabled:opacity-50 relative overflow-hidden group/btn"
+                          >
+                            {uploading === test.id ? (
+                              <Loader2 className="w-5 h-5 animate-spin" />
+                            ) : (
+                              <>
+                                <Upload className="w-5 h-5 text-primary" />
+                                Upload Report
+                              </>
+                            )}
+                          </button>
+                        </div>
                         <p className="text-[10px] text-center text-slate-400 font-bold uppercase tracking-widest">
                           Pipeline: Forwarded to Record Governance
                         </p>

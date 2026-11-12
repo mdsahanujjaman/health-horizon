@@ -1,16 +1,17 @@
+
 require('dotenv').config();
+
 const express = require('express');
 const cors = require('cors');
 const morgan = require('morgan');
 const http = require('http');
 const { Server } = require('socket.io');
-const path = require('path');
 
 const { sequelize } = require('./src/config/database');
 const initSocket = require('./src/socket/chat');
 const errorHandler = require('./src/middleware/errorHandler');
 
-// Import all routes
+// Import application routes
 const authRoutes = require('./src/routes/auth');
 const adminRoutes = require('./src/routes/admin');
 const appointmentRoutes = require('./src/routes/appointments');
@@ -34,18 +35,48 @@ const homeRoutes = require('./src/routes/home');
 
 const app = express();
 const server = http.createServer(app);
+
+// Configure permitted frontend origins.
+// Set FRONTEND_URL as a comma-separated list in the environment.
+const allowedOrigins = (
+    process.env.FRONTEND_URL ||
+    'http://localhost,http://127.0.0.1,http://localhost:5173,http://127.0.0.1:5173'
+)
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+
+const corsOptions = {
+    origin(origin, callback) {
+        // Allow requests without an Origin header, such as server-to-server
+        // requests and local command-line health checks.
+        if (!origin || allowedOrigins.includes(origin)) {
+            return callback(null, true);
+        }
+
+        return callback(new Error('Origin not allowed by CORS.'));
+    },
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    credentials: true
+};
+
+// Socket.IO uses the same origin policy as Express.
 const io = new Server(server, {
-  cors: { origin: '*', methods: ['GET', 'POST'] }
+    cors: corsOptions
 });
+
 app.set('io', io);
 
 // Middleware
-app.use(cors());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(cors(corsOptions));
+app.use(express.json({ limit: '1mb' }));
+app.use(express.urlencoded({
+    extended: true,
+    limit: '1mb'
+}));
 app.use(morgan('dev'));
 
-// Routes
+// API routes
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/admin', adminRoutes);
 app.use('/api/v1/appointments', appointmentRoutes);
@@ -64,52 +95,97 @@ app.use('/api/v1/counseling', counselingRoutes);
 app.use('/api/v1/ai', aiRoutes);
 app.use('/api/v1/analytics', analyticsRoutes);
 app.use('/api/v1/governance', governanceRoutes);
-// Files router handles both POST /upload and GET /:filename + serves static files
 app.use('/api/v1/files', fileRoutes);
 app.use('/api/v1', homeRoutes);
 
-// Actuator health endpoint (mirrors Spring Boot Actuator)
-app.get('/actuator/health', (req, res) => res.json({ status: 'UP' }));
+// Database-aware health endpoint.
+// Returns HTTP 503 if PostgreSQL is unavailable.
+app.get('/actuator/health', async (req, res) => {
+    try {
+        await sequelize.authenticate();
 
-// Error handler (must be last)
+        return res.status(200).json({
+            status: 'UP',
+            components: {
+                database: 'UP'
+            }
+        });
+    } catch (error) {
+        console.error(
+            '[Health Check] Database connection failed:',
+            error.message
+        );
+
+        return res.status(503).json({
+            status: 'DOWN',
+            components: {
+                database: 'DOWN'
+            }
+        });
+    }
+});
+
+// Error handler must be registered after all routes.
 app.use(errorHandler);
 
-// Socket.io chat
+// Initialize authenticated Socket.IO functionality.
 initSocket(io);
 
-// DB sync & start
-const PORT = process.env.PORT || 8080;
-sequelize.sync({ alter: true })
-  .then(async () => {
-    console.log('Database synced successfully.');
-    
-    // Seed/Update Governance Admin Account
-    try {
-      const bcrypt = require('bcryptjs');
-      const { User } = require('./src/models/index');
-      const existing = await User.findOne({ where: { email: 'governance@gmail.com' } });
-      const hashed = await bcrypt.hash('12345', 10);
-      
-      if (existing) {
-        await existing.update({ password: hashed, role: 'ADMIN', verificationStatus: 'VERIFIED' });
-        console.log('Governance Admin account successfully verified/updated with password: 12345');
-      } else {
-        await User.create({
-          fullName: 'Governance Admin',
-          email: 'governance@gmail.com',
-          password: hashed,
-          role: 'ADMIN',
-          verificationStatus: 'VERIFIED'
-        });
-        console.log('Governance Admin account successfully created with password: 12345');
-      }
-    } catch (err) {
-      console.error('Failed to seed governance admin:', err);
-    }
+// Server configuration
+const PORT = Number(process.env.PORT) || 8080;
+const HOST = '0.0.0.0';
 
-    server.listen(PORT, () => console.log(`Health Horizon backend running on port ${PORT}`));
-  })
-  .catch(err => {
-    console.error('Failed to sync database:', err);
-    process.exit(1);
-  });
+// Initialize database before accepting requests.
+const startServer = async () => {
+    try {
+        // Verify the database connection.
+        await sequelize.authenticate();
+
+        console.log('PostgreSQL connection established.');
+
+        // Create missing tables without automatically altering
+        // existing database table structures.
+        await sequelize.sync();
+
+        console.log('Database synchronization completed.');
+
+        server.listen(PORT, HOST, () => {
+            console.log(
+                `Health Horizon backend running on ${HOST}:${PORT}`
+            );
+        });
+    } catch (error) {
+        console.error(
+            'Backend startup failed:',
+            error.message
+        );
+
+        process.exit(1);
+    }
+};
+
+// Graceful shutdown.
+const shutdown = async (signal) => {
+    console.log(`${signal} received. Shutting down gracefully.`);
+
+    server.close(async () => {
+        try {
+            await sequelize.close();
+            console.log('Database connection closed.');
+            process.exit(0);
+        } catch (error) {
+            console.error('Shutdown error:', error.message);
+            process.exit(1);
+        }
+    });
+
+    setTimeout(() => {
+        console.error('Graceful shutdown timed out.');
+        process.exit(1);
+    }, 10000).unref();
+};
+
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));
+
+startServer();

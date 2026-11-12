@@ -18,8 +18,6 @@ const Register = () => {
   const [showPhoneInputModal, setShowPhoneInputModal] = useState(false);
   const [otp, setOtp] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
-  const [showDevInput, setShowDevInput] = useState(false);
-  const [showDevMode, setShowDevMode] = useState(false);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -220,14 +218,6 @@ const Register = () => {
                     <option value="PATIENT">Patient (Self)</option>
                     <option value="CAREGIVER">Caregiver / Guardian (Family)</option>
                     <option value="DOCTOR">Doctor</option>
-                    {showDevMode && (
-                      <>
-                        <option value="ADMIN">Administrator (Dev)</option>
-                        <option value="LAB_TECHNICIAN">Lab Technician (Dev)</option>
-                        <option value="COUNSELOR">Counselor (Dev)</option>
-                        <option value="RECORD_HANDLER">Record Handler (Dev)</option>
-                      </>
-                    )}
                   </select>
                   <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none">
                     <svg
@@ -288,41 +278,6 @@ const Register = () => {
                   </div>
                 </div>
               )}
-
-              {/* Developer Mode Toggle */}
-              <div className="pt-2 text-center">
-                <button
-                  type="button"
-                  onClick={() => setShowDevInput(!showDevInput)}
-                  className="text-[10px] font-black text-slate-300 hover:text-primary transition-colors uppercase tracking-widest"
-                >
-                  {showDevInput ? 'Close Developer Access' : 'Developer Access'}
-                </button>
-
-                {showDevInput && (
-                  <div className="mt-4 animate-fade-in-up bg-slate-50 p-3 rounded-xl border border-slate-100">
-                    <input
-                      type="text"
-                      placeholder="Enter Access Key"
-                      className="input-premium text-center tracking-widest py-2 text-xs"
-                      onChange={(e) => {
-                        const val = e.target.value.trim().toLowerCase();
-                        if (val === 'horizon-admin-2026') {
-                          setShowDevMode(true);
-                        } else {
-                          setShowDevMode(false);
-                        }
-                      }}
-                    />
-                    {showDevMode && (
-                      <p className="text-[10px] text-emerald-500 font-black mt-2 uppercase tracking-wider flex items-center justify-center gap-2">
-                        <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
-                        Unlocked
-                      </p>
-                    )}
-                  </div>
-                )}
-              </div>
 
               <button
                 type="submit"
