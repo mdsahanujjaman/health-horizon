@@ -1172,7 +1172,29 @@ const DoctorDashboard = () => {
                               <div className="space-y-2">
                                 <p className="text-emerald-700 font-black text-sm">✓ Lab findings successfully verified</p>
                                 {detailedLog.data.labReportUrl && (
-                                  <a href={`http://localhost:8081${detailedLog.data.labReportUrl}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-widest text-primary hover:underline mt-1">📄 Download Clinical Report File</a>
+                                  <button
+                                    type="button"
+                                    onClick={async () => {
+                                      try {
+                                        const reportPath = detailedLog.data.labReportUrl.replace(/^\/api\/v1/, '');
+                                        const response = await api.get(reportPath, { responseType: 'blob' });
+                                        const fileUrl = URL.createObjectURL(response.data);
+                                        const link = document.createElement('a');
+                                        link.href = fileUrl;
+                                        link.download = `clinical-report-${detailedLog.data.id}`;
+                                        document.body.appendChild(link);
+                                        link.click();
+                                        link.remove();
+                                        setTimeout(() => URL.revokeObjectURL(fileUrl), 1000);
+                                      } catch (error) {
+                                        console.error('Clinical report download failed:', error);
+                                        window.alert('Unable to download the clinical report. Please try again.');
+                                      }
+                                    }}
+                                    className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-widest text-primary hover:underline mt-1"
+                                  >
+                                    📄 Download Clinical Report File
+                                  </button>
                                 )}
                               </div>
                             )}

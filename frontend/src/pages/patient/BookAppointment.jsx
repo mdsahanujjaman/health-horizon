@@ -169,7 +169,7 @@ const BookAppointment = () => {
                       <Loader2 className="w-8 h-8 animate-spin text-primary" />
                     ) : doctorInfo?.profilePictureUrl ? (
                       <img
-                        src={`http://localhost:8081${doctorInfo.profilePictureUrl}`}
+                        src={doctorInfo.profilePictureUrl}
                         alt={doctorInfo.fullName}
                         className="w-full h-full object-cover"
                         onError={(e) => {

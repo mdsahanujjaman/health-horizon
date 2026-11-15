@@ -171,7 +171,7 @@ const DoctorMessaging = () => {
                   <div className="w-16 h-16 bg-white border-2 border-slate-100 rounded-2xl flex items-center justify-center shadow-sm group-hover:border-primary group-hover:scale-105 transition-all overflow-hidden relative">
                     {conv.participantProfilePictureUrl ? (
                       <img
-                        src={`http://localhost:8081${conv.participantProfilePictureUrl}`}
+                        src={conv.participantProfilePictureUrl}
                         className="w-full h-full object-cover"
                         alt=""
                       />
