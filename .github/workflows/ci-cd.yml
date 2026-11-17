@@ -196,7 +196,7 @@ jobs:
           COMPOSE_B64="$(base64 -w 0 health-horizon/docker-compose.prod.yml)"
 
           REMOTE_SCRIPT=$(cat <<EOF
-          set -euo pipefail
+          set -eu
           cd /opt/health-horizon
 
           printf '%s' '${COMPOSE_B64}' | base64 -d > docker-compose.prod.yml
