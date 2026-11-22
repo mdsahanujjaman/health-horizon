@@ -40,14 +40,24 @@ router.post('/observations', authenticate, async (req, res, next) => {
       return res.status(404).json({ message: 'Patient profile not found.' });
     }
 
+    // Validate before passing user-controlled timestamps to Sequelize.
+    const preliminary = evaluateObservation(input, []);
+    if (preliminary.status === 'INVALID') {
+      await transaction.rollback();
+      return res.status(400).json({
+        status: preliminary.status,
+        reasonCodes: preliminary.reasonCodes,
+        rulesetVersion: preliminary.rulesetVersion,
+      });
+    }
+
     const existing = await ClinicalObservation.findAll({
       where: {
-        patientId: requestedPatientId,
-        metricCode: typeof input.metricCode === 'string' ? input.metricCode.trim().toUpperCase() : '',
-        observedAt: input.observedAt ? new Date(input.observedAt) : null,
+        patientId: preliminary.observation.patientId,
+        metricCode: preliminary.observation.metricCode,
+        observedAt: preliminary.observation.observedAt,
       },
       transaction,
-      lock: transaction.LOCK.UPDATE,
     });
 
     const result = evaluateObservation(input, existing.map((record) => record.toJSON()));
