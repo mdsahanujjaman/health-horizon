@@ -10,8 +10,9 @@ const { evaluateObservation } = require('../services/clinicalIntegrity/reconcili
 // for controlled back-office workflows. Other roles are intentionally excluded
 // until a verified clinician-to-patient assignment check exists.
 router.post('/observations', authenticate, async (req, res, next) => {
-  const transaction = await sequelize.transaction();
+  let transaction;
   try {
+    transaction = await sequelize.transaction();
     const input = { ...req.body };
     const requestedPatientId = Number(input.patientId);
 
@@ -58,6 +59,7 @@ router.post('/observations', authenticate, async (req, res, next) => {
         observedAt: preliminary.observation.observedAt,
       },
       transaction,
+      lock: transaction.LOCK.UPDATE,
     });
 
     const result = evaluateObservation(input, existing.map((record) => record.toJSON()));
@@ -101,7 +103,7 @@ router.post('/observations', authenticate, async (req, res, next) => {
           : 'Observation stored.',
     });
   } catch (error) {
-    if (!transaction.finished) await transaction.rollback();
+    if (transaction && !transaction.finished) await transaction.rollback();
     return next(error);
   }
 });
