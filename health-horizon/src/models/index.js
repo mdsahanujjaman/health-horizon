@@ -12,6 +12,7 @@ const HealthMetric = require('./HealthMetric');
 const PillReminder = require('./PillReminder');
 const CounselingReferral = require('./CounselingReferral');
 const AuditLog = require('./AuditLog');
+const ClinicalObservation = require('./ClinicalObservation');
 
 // Associations
 Doctor.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
@@ -35,6 +36,8 @@ LabTest.belongsTo(Doctor, { foreignKey: 'doctor_id', as: 'doctor' });
 Patient.hasMany(LabTest, { foreignKey: 'patient_id', as: 'labTests' });
 Doctor.hasMany(LabTest, { foreignKey: 'doctor_id', as: 'labTests' });
 HealthMetric.belongsTo(Patient, { foreignKey: 'patient_id', as: 'patient' });
+ClinicalObservation.belongsTo(Patient, { foreignKey: 'patient_id', as: 'patient' });
+Patient.hasMany(ClinicalObservation, { foreignKey: 'patient_id', as: 'clinicalObservations' });
 Patient.hasMany(HealthMetric, { foreignKey: 'patient_id', as: 'healthMetrics' });
 PillReminder.belongsTo(Patient, { foreignKey: 'patient_id', as: 'patient' });
 Patient.hasMany(PillReminder, { foreignKey: 'patient_id', as: 'pillReminders' });
@@ -46,6 +49,6 @@ Patient.hasMany(CounselingReferral, { foreignKey: 'patient_id', as: 'counselingR
 module.exports = {
     User, Doctor, Patient, Appointment, ChatMessage,
     MedicalRecord, Prescription, LabTest, Payment,
-    Notification, HealthMetric, PillReminder,
+    Notification, HealthMetric, ClinicalObservation, PillReminder,
     CounselingReferral, AuditLog,
 };
