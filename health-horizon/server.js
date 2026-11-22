@@ -4,7 +4,6 @@ const cors = require('cors');
 const morgan = require('morgan');
 const http = require('http');
 const { Server } = require('socket.io');
-const path = require('path');
 
 const { sequelize } = require('./src/config/database');
 const initSocket = require('./src/socket/chat');
@@ -64,52 +63,67 @@ app.use('/api/v1/counseling', counselingRoutes);
 app.use('/api/v1/ai', aiRoutes);
 app.use('/api/v1/analytics', analyticsRoutes);
 app.use('/api/v1/governance', governanceRoutes);
-// Files router handles both POST /upload and GET /:filename + serves static files
 app.use('/api/v1/files', fileRoutes);
 app.use('/api/v1', homeRoutes);
 
-// Actuator health endpoint (mirrors Spring Boot Actuator)
+// Health endpoint
 app.get('/actuator/health', (req, res) => res.json({ status: 'UP' }));
 
-// Error handler (must be last)
+// Error handler must be registered last.
 app.use(errorHandler);
 
 // Socket.io chat
 initSocket(io);
 
-// DB sync & start
-const PORT = process.env.PORT || 8080;
-sequelize.sync({ alter: true })
-  .then(async () => {
-    console.log('Database synced successfully.');
-    
-    // Seed/Update Governance Admin Account
-    try {
-      const bcrypt = require('bcryptjs');
-      const { User } = require('./src/models/index');
-      const existing = await User.findOne({ where: { email: 'governance@gmail.com' } });
-      const hashed = await bcrypt.hash('12345', 10);
-      
-      if (existing) {
-        await existing.update({ password: hashed, role: 'ADMIN', verificationStatus: 'VERIFIED' });
-        console.log('Governance Admin account successfully verified/updated with password: 12345');
-      } else {
-        await User.create({
-          fullName: 'Governance Admin',
-          email: 'governance@gmail.com',
-          password: hashed,
-          role: 'ADMIN',
-          verificationStatus: 'VERIFIED'
-        });
-        console.log('Governance Admin account successfully created with password: 12345');
-      }
-    } catch (err) {
-      console.error('Failed to seed governance admin:', err);
-    }
+const PORT = Number.parseInt(process.env.PORT, 10) || 8080;
 
-    server.listen(PORT, () => console.log(`Health Horizon backend running on port ${PORT}`));
-  })
-  .catch(err => {
-    console.error('Failed to sync database:', err);
-    process.exit(1);
+async function bootstrapGovernanceAdmin() {
+  const email = process.env.ADMIN_BOOTSTRAP_EMAIL;
+  const password = process.env.ADMIN_BOOTSTRAP_PASSWORD;
+
+  // Bootstrap is opt-in. Never create a known default password or overwrite
+  // an existing administrator's credentials during application startup.
+  if (!email && !password) {
+    console.log('Governance admin bootstrap skipped (credentials not configured).');
+    return;
+  }
+  if (!email || !password || password.length < 12) {
+    throw new Error('Set both ADMIN_BOOTSTRAP_EMAIL and ADMIN_BOOTSTRAP_PASSWORD (minimum 12 characters), or leave both unset.');
+  }
+
+  const { User } = require('./src/models/index');
+  const existing = await User.findOne({ where: { email } });
+  if (existing) {
+    console.log('Governance admin bootstrap skipped (account already exists).');
+    return;
+  }
+
+  const bcrypt = require('bcryptjs');
+  const hashed = await bcrypt.hash(password, 12);
+  await User.create({
+    fullName: 'Governance Admin',
+    email,
+    password: hashed,
+    role: 'ADMIN',
+    verificationStatus: 'VERIFIED',
   });
+  console.log('Governance admin account created from environment configuration.');
+}
+
+async function start() {
+  try {
+    await sequelize.authenticate();
+    await sequelize.sync({ alter: true });
+    console.log('Database connection established and models synchronized.');
+    await bootstrapGovernanceAdmin();
+
+    server.listen(PORT, '0.0.0.0', () => {
+      console.log(`Health Horizon backend running on port ${PORT}`);
+    });
+  } catch (error) {
+    console.error('Backend startup failed:', error);
+    process.exit(1);
+  }
+}
+
+start();
