@@ -52,6 +52,19 @@ router.post('/observations', authenticate, async (req, res, next) => {
       });
     }
 
+    // Serialize submissions for the same patient/metric/observation instant.
+    // Row locks alone cannot protect an empty result set from concurrent inserts.
+    await sequelize.query(
+      'SELECT pg_advisory_xact_lock(hashtext(:scope), hashtext(:observedAt))',
+      {
+        replacements: {
+          scope: `${preliminary.observation.patientId}:${preliminary.observation.metricCode}`,
+          observedAt: preliminary.observation.observedAt,
+        },
+        transaction,
+      }
+    );
+
     const existing = await ClinicalObservation.findAll({
       where: {
         patientId: preliminary.observation.patientId,
@@ -59,7 +72,6 @@ router.post('/observations', authenticate, async (req, res, next) => {
         observedAt: preliminary.observation.observedAt,
       },
       transaction,
-      lock: transaction.LOCK.UPDATE,
     });
 
     const result = evaluateObservation(input, existing.map((record) => record.toJSON()));
