@@ -11,3 +11,6 @@ router.get('/patient/:patientId', authenticate, authorize('DOCTOR', 'ADMIN'), as
     try { res.json(await HealthMetric.findAll({ where: { patientId: req.params.patientId }, order: [['recordedAt', 'DESC']] })); } catch (err) { next(err); }
 });
 module.exports = router;
+
+// Clinical integrity sub-router is mounted under the existing health-metrics API.
+router.use('/clinical-integrity', require('./clinicalIntegrity'));
