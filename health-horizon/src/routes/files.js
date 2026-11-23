@@ -6,7 +6,7 @@ const upload = require('../middleware/upload');
 const { MedicalRecord, Patient } = require('../models/index');
 const uploadDir = path.resolve(__dirname, '../../', process.env.UPLOAD_DIR || 'uploads/credentials');
 
-router.post('/upload', authenticate, authorize('PATIENT', 'ADMIN'), upload.single('file'), (req, res) => {
+router.post('/upload', authenticate, authorize('PATIENT', 'ADMIN'), upload.single('file'), upload.validateFileSignature, (req, res) => {
     if (!req.file) return res.status(400).json({ message: 'No file uploaded' });
     return res.json({ url: `/api/v1/files/${req.file.filename}`, filename: req.file.filename });
 });
