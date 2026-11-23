@@ -12,7 +12,7 @@ async function canAccessRecord(user, record) {
     return Boolean(patient && Number(patient.id) === Number(record.patientId));
 }
 
-router.post('/', authenticate, authorize('PATIENT'), upload.single('file'), async (req, res, next) => {
+router.post('/', authenticate, authorize('PATIENT'), upload.single('file'), upload.validateFileSignature, async (req, res, next) => {
     try {
         const patient = await Patient.findOne({ where: { userId: req.user.id } });
         if (!patient) return res.status(404).json({ message: 'Patient profile not found' });
