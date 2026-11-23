@@ -76,8 +76,18 @@ app.use('/api/v1/governance', governanceRoutes);
 app.use('/api/v1/files', fileRoutes);
 app.use('/api/v1', homeRoutes);
 
-// Health endpoint
-app.get('/actuator/health', (req, res) => res.json({ status: 'UP' }));
+// Readiness health endpoint: report UP only when the database is reachable.
+app.get('/actuator/health', async (req, res) => {
+  try {
+    await sequelize.authenticate();
+    return res.status(200).json({ status: 'UP', checks: { database: 'UP' } });
+  } catch (error) {
+    return res.status(503).json({
+      status: 'DOWN',
+      checks: { database: 'DOWN' }
+    });
+  }
+});
 
 // Error handler must be registered last.
 app.use(errorHandler);
