@@ -4,15 +4,15 @@ services:
     image: postgres:15
     container_name: health-horizon-db
     environment:
-      POSTGRES_DB: health_horizon
-      POSTGRES_USER: healthuser
-      POSTGRES_PASSWORD: healthpass
+      POSTGRES_DB: ${DB_NAME:-health_horizon}
+      POSTGRES_USER: ${DB_USER:-healthuser}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in the local .env file}
     ports:
       - "5433:5432"
     volumes:
       - health_horizon_db_v2:/var/lib/postgresql/data
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U healthuser" ]
+      test: [ "CMD-SHELL", "pg_isready -U ${DB_USER:-healthuser} -d ${DB_NAME:-health_horizon}" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -47,9 +47,9 @@ services:
       - CORS_ORIGINS
       - DB_HOST=postgres
       - DB_PORT=5432
-      - DB_NAME=health_horizon
-      - DB_USER=healthuser
-      - DB_PASSWORD=healthpass
+      - DB_NAME=${DB_NAME:-health_horizon}
+      - DB_USER=${DB_USER:-healthuser}
+      - DB_PASSWORD=${DB_PASSWORD:?Set DB_PASSWORD in the local .env file}
       - ML_SERVICE_URL=http://ml-service:5000
       - ADMIN_BOOTSTRAP_EMAIL
       - ADMIN_BOOTSTRAP_PASSWORD
