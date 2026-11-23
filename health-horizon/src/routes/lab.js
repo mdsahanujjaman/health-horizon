@@ -5,7 +5,22 @@ const { LabTest, Patient, Doctor, User } = require('../models/index');
 const inc = [{ model: Patient, as: 'patient', include: [{ model: User, as: 'user' }] }, { model: Doctor, as: 'doctor', include: [{ model: User, as: 'user' }] }];
 
 router.post('/', authenticate, authorize('DOCTOR'), async (req, res, next) => {
-    try { const t = await LabTest.create({ ...req.body, status: 'REQUESTED' }); res.json(await LabTest.findByPk(t.id, { include: inc })); } catch (err) { next(err); }
+    try {
+        const doctor = await Doctor.findOne({ where: { userId: req.user.id } });
+        if (!doctor) return res.status(404).json({ message: 'Doctor profile not found' });
+        const patientId = Number(req.body.patientId);
+        if (!Number.isSafeInteger(patientId) || patientId <= 0) return res.status(400).json({ message: 'Valid patientId is required' });
+        const patient = await Patient.findByPk(patientId);
+        if (!patient) return res.status(404).json({ message: 'Patient profile not found' });
+        const t = await LabTest.create({
+            patientId,
+            doctorId: doctor.id,
+            testName: req.body.testName,
+            clinicalReason: req.body.clinicalReason,
+            status: 'REQUESTED'
+        });
+        return res.json(await LabTest.findByPk(t.id, { include: inc }));
+    } catch (err) { return next(err); }
 });
 
 router.post('/request', authenticate, authorize('DOCTOR'), async (req, res, next) => {
@@ -27,9 +42,12 @@ router.post('/request', authenticate, authorize('DOCTOR'), async (req, res, next
             return res.status(404).json({ message: `Patient with ID HH-PAT-${patientIdInt} not found in database.` });
         }
 
+        const doctor = await Doctor.findOne({ where: { userId: req.user.id } });
+        if (!doctor) return res.status(404).json({ message: 'Doctor profile not found' });
+
         const t = await LabTest.create({
             patientId: patientIdInt,
-            doctorId: req.body.doctorId,
+            doctorId: doctor.id,
             testName: req.body.testType || req.body.testName,
             clinicalReason: req.body.instruction || req.body.clinicalReason,
             status: 'REQUESTED'
@@ -69,10 +87,10 @@ router.get('/doctor/my', authenticate, authorize('DOCTOR'), async (req, res, nex
     } catch (err) { next(err); }
 });
 
-router.get('/my', authenticate, async (req, res, next) => {
+router.get('/my', authenticate, authorize('PATIENT'), async (req, res, next) => {
     try { const p = await Patient.findOne({ where: { userId: req.user.id } }); if (!p) return res.json([]); res.json(await LabTest.findAll({ where: { patientId: p.id }, include: inc })); } catch (err) { next(err); }
 });
-router.get('/patient/:patientId', authenticate, async (req, res, next) => {
+router.get('/patient/:patientId', authenticate, authorize('ADMIN'), async (req, res, next) => {
     try { res.json(await LabTest.findAll({ where: { patientId: req.params.patientId }, include: inc })); } catch (err) { next(err); }
 });
 router.get('/pending', authenticate, authorize('LAB_TECHNICIAN', 'ADMIN'), async (req, res, next) => {
@@ -81,7 +99,7 @@ router.get('/pending', authenticate, authorize('LAB_TECHNICIAN', 'ADMIN'), async
 router.get('/to-verify', authenticate, authorize('RECORD_HANDLER', 'ADMIN'), async (req, res, next) => {
     try { res.json(await LabTest.findAll({ where: { status: 'COMPLETED' }, include: inc })); } catch (err) { next(err); }
 });
-router.put('/:id/status', authenticate, async (req, res, next) => {
+router.put('/:id/status', authenticate, authorize('ADMIN'), async (req, res, next) => {
     try { const t = await LabTest.findByPk(req.params.id); if (!t) return res.status(404).json({ message: 'Not found' }); t.status = req.body.status || req.query.status; await t.save(); res.json(t); } catch (err) { next(err); }
 });
 router.post('/:id/upload-report', authenticate, authorize('LAB_TECHNICIAN', 'ADMIN'), upload.single('file'), async (req, res, next) => {
