@@ -48,8 +48,10 @@ app.set('io', io);
 
 // Middleware
 app.use(cors({ origin: (origin, callback) => callback(null, originAllowed(origin)) }));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+// Bound request-body parsing to reduce memory-exhaustion risk. Multipart uploads
+// are handled separately by Multer with their own file and part limits.
+app.use(express.json({ limit: '1mb' }));
+app.use(express.urlencoded({ extended: true, limit: '1mb', parameterLimit: 100 }));
 app.use(morgan('dev'));
 
 // Routes
