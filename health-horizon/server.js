@@ -33,13 +33,21 @@ const homeRoutes = require('./src/routes/home');
 
 const app = express();
 const server = http.createServer(app);
+const allowedOrigins = (process.env.CORS_ORIGINS || 'http://localhost,http://localhost:80,http://localhost:5173')
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+const originAllowed = (origin) => !origin || allowedOrigins.includes(origin);
 const io = new Server(server, {
-  cors: { origin: '*', methods: ['GET', 'POST'] }
+  cors: {
+    origin: (origin, callback) => callback(null, originAllowed(origin)),
+    methods: ['GET', 'POST'],
+  },
 });
 app.set('io', io);
 
 // Middleware
-app.use(cors());
+app.use(cors({ origin: (origin, callback) => callback(null, originAllowed(origin)) }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(morgan('dev'));
@@ -113,7 +121,7 @@ async function bootstrapGovernanceAdmin() {
 async function start() {
   try {
     await sequelize.authenticate();
-    await sequelize.sync({ alter: true });
+    await sequelize.sync(); // Avoid automatic schema alterations at application startup.
     console.log('Database connection established and models synchronized.');
     await bootstrapGovernanceAdmin();
 
